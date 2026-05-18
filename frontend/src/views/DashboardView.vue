@@ -12,7 +12,12 @@ const ach = computed(() => achievement(store.workouts, store.goal, store.today))
 const streak = computed(() => currentStreak(dates.value, store.today))
 const longest = computed(() => longestStreak(dates.value))
 const cells = computed(() => heatmap(store.workouts, store.today, 140))
-const prs = computed(() => personalRecords(store.workouts).slice(0, 4))
+// 自己ベストは筋力種目（重量>0）のみ表示。有酸素/自重は別指標のため除外
+const prs = computed(() =>
+  personalRecords(store.workouts)
+    .filter((p) => p.maxWeightKg > 0)
+    .slice(0, 5),
+)
 const goalLabel = computed(() =>
   store.goal.metric === 'sessions'
     ? `${store.goal.periodType === 'weekly' ? '週' : '月'}${store.goal.targetValue}回`
@@ -41,15 +46,35 @@ const goalLabel = computed(() =>
   </div>
 
   <div class="card">
-    <h2>直近の自己ベスト更新</h2>
-    <div v-for="p in prs" :key="p.exerciseId" class="list-item" style="cursor:default">
-      <div>
-        <strong>{{ p.exerciseName }}</strong>
-        <span class="tag" style="margin-left:8px">自己ベスト🏅</span>
-      </div>
-      <div class="muted">
-        最大 {{ p.bestWeightKg }}kg / 推定1RM {{ p.best1RM }}kg ・ {{ p.achievedOn }}
+    <h2>自己ベスト（種目別）</h2>
+    <div class="muted" style="margin-bottom:6px">
+      ① 1回でも扱えた最大重量　② 重量×レップでのベスト（推定1RM）
+    </div>
+    <div
+      v-for="p in prs"
+      :key="p.exerciseId"
+      style="padding:12px 0; border-bottom:1px solid var(--border)"
+    >
+      <strong>{{ p.exerciseName }}</strong>
+      <div class="grid2" style="margin-top:6px; gap:10px">
+        <div style="background:var(--card2); border-radius:10px; padding:10px 12px">
+          <div class="muted" style="font-size:12px">① 最大重量</div>
+          <div style="font-size:20px; font-weight:800">{{ p.maxWeightKg }} kg</div>
+          <div class="muted" style="font-size:12px">
+            {{ p.maxWeightReps }}回 ・ {{ p.maxWeightOn }}
+          </div>
+        </div>
+        <div style="background:var(--card2); border-radius:10px; padding:10px 12px">
+          <div class="muted" style="font-size:12px">② 推定1RMベスト</div>
+          <div style="font-size:20px; font-weight:800">{{ p.best1RM }} kg</div>
+          <div class="muted" style="font-size:12px">
+            {{ p.best1RMWeightKg }}kg×{{ p.best1RMReps }}回 ・ {{ p.best1RMOn }}
+          </div>
+        </div>
       </div>
     </div>
+    <p class="muted" style="margin-top:8px; font-size:12px">
+      ※ 推定1RMはEpley式。10レップ超は参考値。有酸素/自重種目は別指標のため非表示
+    </p>
   </div>
 </template>

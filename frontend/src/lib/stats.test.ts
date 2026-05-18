@@ -6,6 +6,8 @@ import {
   longestStreak,
   achievement,
   isNewPR,
+  prHit,
+  personalRecords,
   heatmap,
   type Workout,
 } from './stats'
@@ -83,6 +85,39 @@ describe('isNewPR', () => {
   })
   it('過去最大未満はPRでない', () => {
     expect(isNewPR(history, 1, 70, 5)).toBe(false)
+  })
+})
+
+describe('personalRecords (2指標)', () => {
+  const ws = [
+    mk(1, '2026-05-10', [[1, 100, 1]]), // 最大重量100kg(1回), e1RM≈103.3
+    mk(2, '2026-05-12', [[1, 80, 10]]), // 最大重量80kg, e1RM=80*(1+10/30)=106.7
+  ]
+  it('最大重量は回数を問わない最大kg', () => {
+    const p = personalRecords(ws).find((x) => x.exerciseId === 1)!
+    expect(p.maxWeightKg).toBe(100)
+    expect(p.maxWeightReps).toBe(1)
+    expect(p.maxWeightOn).toBe('2026-05-10')
+  })
+  it('推定1RMベストは重量×レップで最大のセット', () => {
+    const p = personalRecords(ws).find((x) => x.exerciseId === 1)!
+    expect(p.best1RM).toBe(106.7)
+    expect(p.best1RMWeightKg).toBe(80)
+    expect(p.best1RMReps).toBe(10)
+    expect(p.best1RMOn).toBe('2026-05-12')
+  })
+})
+
+describe('prHit', () => {
+  const history = [mk(1, '2026-05-10', [[1, 80, 5]])] // max80kg, e1RM=93.3
+  it('重量だけ更新', () => {
+    expect(prHit(history, 1, 85, 1)).toEqual({ maxWeight: true, best1RM: false })
+  })
+  it('e1RMだけ更新（重量は同じでも高レップ）', () => {
+    expect(prHit(history, 1, 80, 8)).toEqual({ maxWeight: false, best1RM: true })
+  })
+  it('履歴なしは両方更新', () => {
+    expect(prHit(history, 9, 10, 10)).toEqual({ maxWeight: true, best1RM: true })
   })
 })
 

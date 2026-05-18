@@ -113,12 +113,23 @@ export function achievement(
 export interface PRResult {
   exerciseId: number
   exerciseName: string
-  bestWeightKg: number
+  // ①「1回でも最大何kg扱えたか」: 回数に関係ない挙上重量の最大
+  maxWeightKg: number
+  maxWeightReps: number
+  maxWeightOn: string
+  // ②「重量×レップでのベスト」: 推定1RM(Epley)が最大のセット
   best1RM: number
-  achievedOn: string
+  best1RMWeightKg: number
+  best1RMReps: number
+  best1RMOn: string
 }
 
-/** 種目別の自己ベスト一覧（重量・推定1RM最大）。achievedOn は最大1RM達成日 */
+/**
+ * 種目別の自己ベスト。2指標を分けて返す。
+ * - 最大重量: 回数に関係なく挙上した最大kg（同重量なら高レップを優先表示）
+ * - 推定1RMベスト: Epley式 e1RM が最大のセット（重量×レップでの強さ）
+ * 並びは「最近どちらかを達成した日」の降順。
+ */
 export function personalRecords(workouts: Workout[]): PRResult[] {
   const map = new Map<number, PRResult>()
   for (const w of workouts) {
@@ -129,33 +140,68 @@ export function personalRecords(workouts: Workout[]): PRResult[] {
         map.set(set.exerciseId, {
           exerciseId: set.exerciseId,
           exerciseName: set.exerciseName,
-          bestWeightKg: set.weightKg,
+          maxWeightKg: set.weightKg,
+          maxWeightReps: set.reps,
+          maxWeightOn: w.performedOn,
           best1RM: rm,
-          achievedOn: w.performedOn,
+          best1RMWeightKg: set.weightKg,
+          best1RMReps: set.reps,
+          best1RMOn: w.performedOn,
         })
       } else {
-        if (set.weightKg > cur.bestWeightKg) cur.bestWeightKg = set.weightKg
+        if (
+          set.weightKg > cur.maxWeightKg ||
+          (set.weightKg === cur.maxWeightKg && set.reps > cur.maxWeightReps)
+        ) {
+          cur.maxWeightKg = set.weightKg
+          cur.maxWeightReps = set.reps
+          cur.maxWeightOn = w.performedOn
+        }
         if (rm > cur.best1RM) {
           cur.best1RM = rm
-          cur.achievedOn = w.performedOn
+          cur.best1RMWeightKg = set.weightKg
+          cur.best1RMReps = set.reps
+          cur.best1RMOn = w.performedOn
         }
       }
     }
   }
-  return [...map.values()].sort((a, b) => b.achievedOn.localeCompare(a.achievedOn))
+  return [...map.values()].sort((a, b) =>
+    (b.maxWeightOn > b.best1RMOn ? b.maxWeightOn : b.best1RMOn).localeCompare(
+      a.maxWeightOn > a.best1RMOn ? a.maxWeightOn : a.best1RMOn,
+    ),
+  )
 }
 
-/** あるセットが、過去履歴に対して自己ベスト更新かを判定 */
+export interface PRHit {
+  maxWeight: boolean
+  best1RM: boolean
+}
+
+/** あるセットが、過去履歴に対してどちらの自己ベストを更新したか */
+export function prHit(
+  history: Workout[],
+  exerciseId: number,
+  weightKg: number,
+  reps: number,
+): PRHit {
+  const cur = personalRecords(history).find((p) => p.exerciseId === exerciseId)
+  if (!cur) return { maxWeight: true, best1RM: true }
+  return {
+    maxWeight: weightKg > cur.maxWeightKg,
+    best1RM: estimated1RM(weightKg, reps) > cur.best1RM,
+  }
+}
+
+/** あるセットが、過去履歴に対していずれかの自己ベストを更新したか */
 export function isNewPR(
   history: Workout[],
   exerciseId: number,
   weightKg: number,
   reps: number,
 ): boolean {
-  const prs = personalRecords(history)
-  const cur = prs.find((p) => p.exerciseId === exerciseId)
-  if (!cur) return true
-  return weightKg > cur.bestWeightKg || estimated1RM(weightKg, reps) > cur.best1RM
+  const h = prHit(history, exerciseId, weightKg, reps)
+  return h.maxWeight || h.best1RM
 }
 
 export interface HeatCell {
