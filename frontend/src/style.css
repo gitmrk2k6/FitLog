@@ -91,3 +91,12 @@ label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 5px
   padding: 14px 0; border-bottom: 1px solid var(--border); cursor: pointer;
 }
 .list-item:last-child { border-bottom: none; }
+
+.pr-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+}
+.pr-cell { background: var(--card2); border-radius: 10px; padding: 10px 12px; }
+@media (max-width: 640px) { .pr-grid { grid-template-columns: 1fr; } }

@@ -117,7 +117,10 @@ export interface PRResult {
   maxWeightKg: number
   maxWeightReps: number
   maxWeightOn: string
-  // ②「重量×レップでのベスト」: 推定1RM(Epley)が最大のセット
+  // ②「ベストボリューム」: 1記録での種目Σ(重量×回数×全セット)の自己最高
+  bestVolume: number
+  bestVolumeOn: string
+  // ③「推定1RMベスト」: 推定1RM(Epley)が最大のセット（補助・参考）
   best1RM: number
   best1RMWeightKg: number
   best1RMReps: number
@@ -133,8 +136,17 @@ export interface PRResult {
 export function personalRecords(workouts: Workout[]): PRResult[] {
   const map = new Map<number, PRResult>()
   for (const w of workouts) {
+    // この記録における種目別ボリューム（Σ重量×回数×全セット）
+    const volByEx = new Map<number, number>()
+    for (const set of w.sets) {
+      volByEx.set(
+        set.exerciseId,
+        (volByEx.get(set.exerciseId) ?? 0) + set.weightKg * set.reps,
+      )
+    }
     for (const set of w.sets) {
       const rm = estimated1RM(set.weightKg, set.reps)
+      const vol = volByEx.get(set.exerciseId) ?? 0
       const cur = map.get(set.exerciseId)
       if (!cur) {
         map.set(set.exerciseId, {
@@ -143,6 +155,8 @@ export function personalRecords(workouts: Workout[]): PRResult[] {
           maxWeightKg: set.weightKg,
           maxWeightReps: set.reps,
           maxWeightOn: w.performedOn,
+          bestVolume: vol,
+          bestVolumeOn: w.performedOn,
           best1RM: rm,
           best1RMWeightKg: set.weightKg,
           best1RMReps: set.reps,
@@ -156,6 +170,10 @@ export function personalRecords(workouts: Workout[]): PRResult[] {
           cur.maxWeightKg = set.weightKg
           cur.maxWeightReps = set.reps
           cur.maxWeightOn = w.performedOn
+        }
+        if (vol > cur.bestVolume) {
+          cur.bestVolume = vol
+          cur.bestVolumeOn = w.performedOn
         }
         if (rm > cur.best1RM) {
           cur.best1RM = rm

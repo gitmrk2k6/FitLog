@@ -115,10 +115,12 @@ erDiagram
         numeric max_weight_kg "①最大重量"
         int max_weight_reps "①達成時の回数"
         date max_weight_on "①達成日"
-        numeric best_est_1rm "②推定1RMベスト"
-        numeric best_1rm_weight_kg "②元の重量"
-        int best_1rm_reps "②元の回数"
-        date best_1rm_on "②達成日"
+        numeric best_volume "②ベストボリューム"
+        date best_volume_on "②達成日"
+        numeric best_est_1rm "③推定1RMベスト"
+        numeric best_1rm_weight_kg "③元の重量"
+        int best_1rm_reps "③元の回数"
+        date best_1rm_on "③達成日"
     }
 ```
 
@@ -180,8 +182,9 @@ erDiagram
 - **goals**: id, user_id(FK), period_type VARCHAR, metric VARCHAR, target_value NUMERIC, start_on DATE, created_at
 - **personal_records**: id, user_id(FK), exercise_id(FK),
   - ① 最大重量: max_weight_kg, max_weight_reps, max_weight_set_id(FK), max_weight_on
-  - ② 推定1RMベスト: best_est_1rm, best_1rm_weight_kg, best_1rm_reps, best_1rm_set_id(FK), best_1rm_on
-  - ※ 2指標を分けて保持（F-09）。重量0の有酸素/自重種目は対象外
+  - ② ベストボリューム: best_volume, best_volume_workout_id(FK), best_volume_on
+  - ③ 推定1RMベスト: best_est_1rm, best_1rm_weight_kg, best_1rm_reps, best_1rm_set_id(FK), best_1rm_on
+  - ※ 3指標を分けて保持（F-09）。②は1記録での種目Σ(重量×回数×全セット)。重量0の有酸素/自重種目は対象外
 
 ---
 

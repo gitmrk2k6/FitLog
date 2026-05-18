@@ -106,6 +106,16 @@ describe('personalRecords (2指標)', () => {
     expect(p.best1RMReps).toBe(10)
     expect(p.best1RMOn).toBe('2026-05-12')
   })
+  it('ベストボリュームは1記録での種目Σ(重量×回数×全セット)の最高', () => {
+    // 2026-05-12 に複数セット: 80*10 + 80*10 = 1600
+    const ws2 = [
+      mk(1, '2026-05-10', [[1, 100, 1]]), // vol 100
+      mk(2, '2026-05-12', [[1, 80, 10], [1, 80, 10]]), // vol 1600
+    ]
+    const p = personalRecords(ws2).find((x) => x.exerciseId === 1)!
+    expect(p.bestVolume).toBe(1600)
+    expect(p.bestVolumeOn).toBe('2026-05-12')
+  })
 })
 
 describe('prHit', () => {
