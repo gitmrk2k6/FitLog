@@ -112,10 +112,15 @@ erDiagram
         bigint id PK "自動採番"
         bigint user_id FK "対象ユーザー（users.id）"
         bigint exercise_id FK "対象種目（exercises.id）"
-        numeric best_weight_kg "自己ベスト重量"
-        numeric best_est_1rm "推定1RMの自己ベスト"
-        bigint workout_set_id FK "達成したセット（workout_sets.id）"
-        timestamp achieved_at
+        numeric max_weight_kg "①最大重量"
+        int max_weight_reps "①達成時の回数"
+        date max_weight_on "①達成日"
+        numeric best_volume "②ベストボリューム"
+        date best_volume_on "②達成日"
+        numeric best_est_1rm "③推定1RMベスト"
+        numeric best_1rm_weight_kg "③元の重量"
+        int best_1rm_reps "③元の回数"
+        date best_1rm_on "③達成日"
     }
 ```
 
@@ -175,7 +180,11 @@ erDiagram
 - **advices**: id, workout_id(FK), user_id(FK), content TEXT, created_at
 - **follows**: id, follower_id(FK), following_id(FK), created_at
 - **goals**: id, user_id(FK), period_type VARCHAR, metric VARCHAR, target_value NUMERIC, start_on DATE, created_at
-- **personal_records**: id, user_id(FK), exercise_id(FK), best_weight_kg, best_est_1rm, workout_set_id(FK), achieved_at
+- **personal_records**: id, user_id(FK), exercise_id(FK),
+  - ① 最大重量: max_weight_kg, max_weight_reps, max_weight_set_id(FK), max_weight_on
+  - ② ベストボリューム: best_volume, best_volume_workout_id(FK), best_volume_on
+  - ③ 推定1RMベスト: best_est_1rm, best_1rm_weight_kg, best_1rm_reps, best_1rm_set_id(FK), best_1rm_on
+  - ※ 3指標を分けて保持（F-09）。②は1記録での種目Σ(重量×回数×全セット)。重量0の有酸素/自重種目は対象外
 
 ---
 
