@@ -1,7 +1,9 @@
 from decimal import Decimal
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
+from app.core import messages
 from app.models.workout import Workout
 from app.repositories.cheer_repository import CheerRepository
 from app.repositories.exercise_repository import ExerciseRepository
@@ -28,6 +30,23 @@ class NotWorkoutOwnerError(Exception):
 
 class ExerciseNotAccessibleError(Exception):
     """指定の種目が存在しない or 参照不可。"""
+
+
+class PhotoTypeError(Exception):
+    """対応外の画像形式（JPEG/PNG 以外）。"""
+
+
+class PhotoTooLargeError(Exception):
+    """画像サイズが上限（5MB）超過。"""
+
+
+class PhotoEmptyError(Exception):
+    """空ファイル。"""
+
+
+# F-10 写真添付の制約
+PHOTO_MAX_BYTES = 5 * 1024 * 1024
+PHOTO_CONTENT_TYPES = {"image/jpeg": ".jpg", "image/png": ".png"}
 
 
 class WorkoutService:
@@ -222,3 +241,36 @@ class WorkoutService:
             created_at=workout.created_at,
             updated_at=workout.updated_at,
         )
+
+    # ---- F-10 写真添付（本人のみ。保存は storage 抽象に委譲） ----
+    def set_photo(
+        self,
+        user_id: int,
+        workout_id: int,
+        *,
+        data: bytes,
+        content_type: str,
+        storage,
+    ) -> WorkoutDetail:
+        workout = self._owned(workout_id, user_id)
+        ext = PHOTO_CONTENT_TYPES.get(content_type)
+        if ext is None:
+            raise PhotoTypeError(messages.PHOTO_TYPE_INVALID)
+        if not data:
+            raise PhotoEmptyError(messages.PHOTO_EMPTY)
+        if len(data) > PHOTO_MAX_BYTES:
+            raise PhotoTooLargeError(messages.PHOTO_TOO_LARGE)
+        key = f"workouts/{user_id}/{uuid4().hex}{ext}"
+        url = storage.save(data, key, content_type)
+        workout.photo_url = url
+        self.repo.commit_refresh(workout)
+        return self._to_detail(workout, viewer_id=user_id)
+
+    def clear_photo(
+        self, user_id: int, workout_id: int
+    ) -> WorkoutDetail:
+        workout = self._owned(workout_id, user_id)
+        # DB の URL のみ破棄（オブジェクト実体の掃除は MVP 範囲外）
+        workout.photo_url = None
+        self.repo.commit_refresh(workout)
+        return self._to_detail(workout, viewer_id=user_id)

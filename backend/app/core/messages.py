@@ -29,3 +29,8 @@ WORKOUT_NOT_VISIBLE = "この記録を閲覧する権限がありません"
 
 # F-07 目標
 GOAL_NOT_FOUND = "目標が設定されていません"
+
+# F-10 写真
+PHOTO_TYPE_INVALID = "対応していない画像形式です（JPEG / PNG のみ）"
+PHOTO_TOO_LARGE = "画像サイズが大きすぎます（最大5MB）"
+PHOTO_EMPTY = "画像ファイルが空です"
