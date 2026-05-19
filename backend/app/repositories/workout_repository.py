@@ -1,7 +1,9 @@
 from collections.abc import Sequence
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from datetime import date
+
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.models.advice import Advice
@@ -157,3 +159,38 @@ class WorkoutRepository:
         # 紐づくセット/ナイストレ/アドバイスは FK ON DELETE CASCADE で連動削除
         self.db.delete(workout)
         self.db.commit()
+
+    # ---- F-08 ストリーク / ヒートマップ ----
+    def distinct_performed_dates(self, user_id: int) -> list[date]:
+        """ユーザーの実施日（重複なし）。ストリーク算出の入力。"""
+        stmt = (
+            select(Workout.performed_on)
+            .where(Workout.user_id == user_id)
+            .distinct()
+        )
+        return list(self.db.scalars(stmt))
+
+    def daily_volume_series(
+        self, user_id: int, start: date, end: date
+    ) -> list[tuple[date, Decimal]]:
+        """[start, end] の全日について日別総ボリューム。
+
+        PostgreSQL generate_series で日付軸を生成し記録を LEFT JOIN するため、
+        記録の無い日も volume=0 の行として欠損なく返る（GitHub風グリッド用）。
+        """
+        sql = text(
+            """
+            SELECT gs.d::date AS day,
+                   COALESCE(SUM(ws.weight_kg * ws.reps), 0) AS volume
+            FROM generate_series(:start, :end, interval '1 day') AS gs(d)
+            LEFT JOIN workouts w
+              ON w.performed_on = gs.d::date AND w.user_id = :uid
+            LEFT JOIN workout_sets ws ON ws.workout_id = w.id
+            GROUP BY gs.d
+            ORDER BY gs.d
+            """
+        )
+        rows = self.db.execute(
+            sql, {"start": start, "end": end, "uid": user_id}
+        )
+        return [(r.day, Decimal(r.volume)) for r in rows]
