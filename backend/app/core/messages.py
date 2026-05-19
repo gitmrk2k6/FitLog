@@ -26,3 +26,6 @@ CANNOT_FOLLOW_SELF = "自分自身はフォローできません"
 ALREADY_FOLLOWING = "すでにフォローしています"
 NOT_FOLLOWING = "フォローしていません"
 WORKOUT_NOT_VISIBLE = "この記録を閲覧する権限がありません"
+
+# F-07 目標
+GOAL_NOT_FOUND = "目標が設定されていません"

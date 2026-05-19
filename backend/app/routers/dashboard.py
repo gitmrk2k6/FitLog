@@ -5,6 +5,8 @@ from app.db.session import get_db
 from app.models.user import User
 from app.routers.deps import get_current_user
 from app.schemas.dashboard import PersonalRecordOut
+from app.schemas.goal import AchievementOut
+from app.services.goal_service import GoalService
 from app.services.personal_record_service import PersonalRecordService
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
@@ -32,3 +34,12 @@ def personal_records(
         )
         for pr, name in rows
     ]
+
+
+@router.get("/achievements", response_model=list[AchievementOut])
+def achievements(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """現在期間（今週/今月）の目標達成率（F-07）。"""
+    return GoalService(db).current_achievements(current_user.id)
