@@ -1,5 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 
+import { getToken } from '../api/token'
+
+const PUBLIC = new Set(['login', 'signup'])
+
 export const router = createRouter({
   history: createWebHistory(),
   routes: [
@@ -14,4 +18,13 @@ export const router = createRouter({
     { path: '/feed', name: 'feed', component: () => import('../views/FeedView.vue') },
     { path: '/search', name: 'search', component: () => import('../views/SearchView.vue') },
   ],
+})
+
+// 未ログインで保護画面 → ログインへ。ログイン済で認証画面 → ダッシュボードへ。
+router.beforeEach((to) => {
+  const authed = getToken() !== null
+  const isPublic = PUBLIC.has(to.name as string)
+  if (!authed && !isPublic) return { name: 'login' }
+  if (authed && isPublic) return { name: 'dashboard' }
+  return true
 })
