@@ -4,10 +4,15 @@ import { useRoute, useRouter } from 'vue-router'
 
 import { ApiError } from '../api/client'
 import {
-  deleteWorkout,
-  getWorkout,
-  type WorkoutDetail,
-} from '../api/workouts'
+  addAdvice,
+  addCheer,
+  deleteAdvice,
+  listAdvices,
+  removeCheer,
+  type Advice,
+} from '../api/social'
+import { deleteWorkout, getWorkout, type WorkoutDetail } from '../api/workouts'
+import { auth } from '../stores/auth'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,9 +22,23 @@ const workout = ref<WorkoutDetail | null>(null)
 const loading = ref(true)
 const error = ref('')
 
+const cheered = ref(false)
+const cheersCount = ref(0)
+const cheerBusy = ref(false)
+const advices = ref<Advice[]>([])
+const newAdvice = ref('')
+
+const isOwn = computed(
+  () => workout.value?.userId === auth.currentUser.value?.id,
+)
+
 onMounted(async () => {
   try {
-    workout.value = await getWorkout(id)
+    const w = await getWorkout(id)
+    workout.value = w
+    cheered.value = w.cheeredByMe
+    cheersCount.value = w.cheersCount
+    advices.value = await listAdvices(id)
   } catch (e) {
     error.value =
       e instanceof ApiError ? e.message : '読み込みに失敗しました'
@@ -31,20 +50,15 @@ onMounted(async () => {
 const grouped = computed(() => {
   const g = new Map<
     string,
-    { name: string; exerciseId: number; isPr: boolean; sets: string[] }
+    { name: string; isPr: boolean; sets: string[] }
   >()
   for (const s of workout.value?.sets ?? []) {
     if (!g.has(s.exerciseName)) {
-      g.set(s.exerciseName, {
-        name: s.exerciseName,
-        exerciseId: s.exerciseId,
-        isPr: false,
-        sets: [],
-      })
+      g.set(s.exerciseName, { name: s.exerciseName, isPr: false, sets: [] })
     }
     const e = g.get(s.exerciseName)!
     e.sets.push(`${s.weightKg}kg×${s.reps}`)
-    if (s.isPr) e.isPr = true // F-09 はバックエンドが判定済み
+    if (s.isPr) e.isPr = true
   }
   return [...g.values()]
 })
@@ -58,15 +72,59 @@ async function remove() {
     error.value = e instanceof ApiError ? e.message : '削除に失敗しました'
   }
 }
+
+async function toggleCheer() {
+  if (cheerBusy.value) return
+  cheerBusy.value = true
+  error.value = ''
+  try {
+    if (cheered.value) {
+      await removeCheer(id)
+      cheered.value = false
+      cheersCount.value -= 1
+    } else {
+      const s = await addCheer(id)
+      cheered.value = s.cheeredByMe
+      cheersCount.value = s.cheersCount
+    }
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : '操作に失敗しました'
+  } finally {
+    cheerBusy.value = false
+  }
+}
+
+async function postAdvice() {
+  const content = newAdvice.value.trim()
+  if (!content) return
+  try {
+    const a = await addAdvice(id, content)
+    advices.value.push(a)
+    newAdvice.value = ''
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : '送信に失敗しました'
+  }
+}
+
+async function removeAdvice(a: Advice) {
+  try {
+    await deleteAdvice(a.id)
+    advices.value = advices.value.filter((x) => x.id !== a.id)
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : '削除に失敗しました'
+  }
+}
 </script>
 
 <template>
   <p v-if="loading" class="card muted">読み込み中…</p>
-  <div v-else-if="error" class="card muted" style="color:#e66">{{ error }}</div>
+  <div v-else-if="error && !workout" class="card muted" style="color:#e66">
+    {{ error }}
+  </div>
   <div v-else-if="workout">
     <div class="row" style="justify-content:space-between; margin-bottom:14px">
       <h1 style="font-size:20px">{{ workout.performedOn }} の記録</h1>
-      <div class="row">
+      <div v-if="isOwn" class="row">
         <button
           class="btn small secondary"
           @click="router.push(`/record?id=${workout.id}`)"
@@ -92,13 +150,51 @@ async function remove() {
     </div>
 
     <div class="card">
-      <h2>ナイストレーニング / アドバイス</h2>
-      <div class="muted">
-        ♡ {{ workout.cheersCount }} ・ 💬 {{ workout.advicesCount }}
+      <h2>ナイストレーニング</h2>
+      <button
+        v-if="!isOwn"
+        class="btn small"
+        :class="{ secondary: cheered }"
+        :disabled="cheerBusy"
+        @click="toggleCheer"
+      >
+        {{ cheered ? '✓ ナイストレ済み' : '👍 ナイストレ' }}（{{
+          cheersCount
+        }}）
+      </button>
+      <div v-else class="muted">♡ {{ cheersCount }}（自分の記録）</div>
+    </div>
+
+    <div class="card">
+      <h2>アドバイス・応援</h2>
+      <p v-if="advices.length === 0" class="muted">まだありません。</p>
+      <div
+        v-for="a in advices"
+        :key="a.id"
+        class="row"
+        style="justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--border)"
+      >
+        <span><strong>@{{ a.username }}</strong> {{ a.content }}</span>
+        <button
+          v-if="a.userId === auth.currentUser.value?.id"
+          class="btn small secondary"
+          @click="removeAdvice(a)"
+        >
+          削除
+        </button>
       </div>
-      <div class="muted" style="margin-top:6px">
-        ※ 付与・コメント機能は後続スライス（F-04/F-05）で接続します
+      <div v-if="!isOwn" class="row" style="margin-top:12px">
+        <input
+          v-model="newAdvice"
+          placeholder="応援コメントを送る（最大140文字）"
+          maxlength="140"
+          @keyup.enter="postAdvice"
+        />
+        <button class="btn small" @click="postAdvice">送信</button>
       </div>
+      <p v-if="error" class="muted" style="color:#e66; margin-top:8px">
+        {{ error }}
+      </p>
     </div>
   </div>
   <div v-else class="card">記録が見つかりません。</div>
