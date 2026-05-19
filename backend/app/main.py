@@ -10,6 +10,7 @@ from app.routers import (
     exercises,
     feed,
     goals,
+    photos,
     users,
     workouts,
 )
@@ -29,6 +30,7 @@ app.add_middleware(
 app.include_router(auth.router)
 app.include_router(exercises.router)
 app.include_router(workouts.router)
+app.include_router(photos.router)
 app.include_router(cheers.router)
 app.include_router(advices.router)
 app.include_router(users.router)

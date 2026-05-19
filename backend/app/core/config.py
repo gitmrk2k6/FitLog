@@ -16,6 +16,12 @@ class Settings(BaseSettings):
     storage_backend: str = "local"
     local_storage_dir: str = "./var/uploads"
 
+    # F-10 S3（教材 RaiseTimeLine の構成を流用。storage_backend=s3 時に使用）
+    s3_bucket: str = "fitlog-photos"
+    s3_region: str = "ap-northeast-1"
+    s3_endpoint_url: str | None = None  # MinIO/LocalStack 等テスト用
+    s3_public_base_url: str | None = None  # CloudFront 等の配信ドメイン
+
     frontend_origin: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(

@@ -12,6 +12,12 @@ def get_storage() -> StorageBackend:
     if backend == "local":
         return LocalStorage(settings.local_storage_dir)
     if backend == "s3":
-        # F-10 で boto3 ベースの S3Storage を実装予定
-        raise NotImplementedError("S3 ストレージは F-10 で実装予定です")
+        from app.storage.s3 import S3Storage
+
+        return S3Storage(
+            settings.s3_bucket,
+            region=settings.s3_region,
+            endpoint_url=settings.s3_endpoint_url,
+            public_base_url=settings.s3_public_base_url,
+        )
     raise ValueError(f"未知の STORAGE_BACKEND: {backend}")
