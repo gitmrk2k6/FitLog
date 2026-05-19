@@ -6,12 +6,14 @@ from app.models.workout import Workout
 from app.repositories.exercise_repository import ExerciseRepository
 from app.repositories.workout_repository import WorkoutRepository
 from app.schemas.workout import (
+    PrUpdateOut,
     WorkoutCreate,
     WorkoutDetail,
     WorkoutSetOut,
     WorkoutSummary,
     WorkoutUpdate,
 )
+from app.services.personal_record_service import PersonalRecordService
 
 
 class WorkoutNotFoundError(Exception):
@@ -28,8 +30,10 @@ class ExerciseNotAccessibleError(Exception):
 
 class WorkoutService:
     def __init__(self, db: Session) -> None:
+        self.db = db
         self.repo = WorkoutRepository(db)
         self.exercises = ExerciseRepository(db)
+        self.pr = PersonalRecordService(db)
 
     # ---- 入力の種目検証 & フラットなセット列の構築 ----
     def _build_sets(self, user_id: int, payload: WorkoutCreate) -> list[dict]:
@@ -72,25 +76,40 @@ class WorkoutService:
             photo_url=payload.photo_url,
             sets=sets,
         )
-        return self._to_detail(workout)
+        # F-09: 保存時に自己ベスト判定
+        pr_updates = self.pr.apply_for_workout(user_id, workout.id)
+        self.db.commit()
+        self.db.refresh(workout)
+        return self._to_detail(workout, pr_updates)
 
     # ---- F-02 編集（全置換） ----
     def update(
         self, user_id: int, workout_id: int, payload: WorkoutUpdate
     ) -> WorkoutDetail:
         workout = self._owned(workout_id, user_id)
+        old_ex = set(self.pr.repo.exercise_ids_in_workout(workout.id))
         sets = self._build_sets(user_id, payload)
         workout.performed_on = payload.performed_on
         workout.memo = payload.memo
         workout.photo_url = payload.photo_url
         self.repo.replace_sets(workout, sets)
         self.repo.commit_refresh(workout)
-        return self._to_detail(workout)
+        # F-09: 編集後のPR再判定。現構成は判定し、編集で外れた種目は再計算で整合
+        pr_updates = self.pr.apply_for_workout(user_id, workout.id)
+        current_ex = set(self.pr.repo.exercise_ids_in_workout(workout.id))
+        self.pr.recompute_exercises(user_id, sorted(old_ex - current_ex))
+        self.db.commit()
+        self.db.refresh(workout)
+        return self._to_detail(workout, pr_updates)
 
     # ---- F-02 削除 ----
     def delete(self, user_id: int, workout_id: int) -> None:
         workout = self._owned(workout_id, user_id)
+        affected = self.pr.repo.exercise_ids_in_workout(workout.id)
         self.repo.delete(workout)
+        # F-09: 削除で消えたセット分のPRを全履歴から再計算し整合維持
+        self.pr.recompute_exercises(user_id, sorted(set(affected)))
+        self.db.commit()
 
     # ---- F-03 一覧 ----
     def list_for_user(
@@ -128,7 +147,9 @@ class WorkoutService:
         workout = self._owned(workout_id, user_id)
         return self._to_detail(workout)
 
-    def _to_detail(self, workout: Workout) -> WorkoutDetail:
+    def _to_detail(
+        self, workout: Workout, pr_updates: list | None = None
+    ) -> WorkoutDetail:
         rows = self.repo.sets_with_exercise_name(workout.id)
         sets = [
             WorkoutSetOut(
@@ -156,6 +177,10 @@ class WorkoutService:
             total_volume=total,
             cheers_count=cheers,
             advices_count=advices,
+            pr_updates=[
+                PrUpdateOut(exercise_id=u.exercise_id, metrics=u.metrics)
+                for u in (pr_updates or [])
+            ],
             created_at=workout.created_at,
             updated_at=workout.updated_at,
         )
