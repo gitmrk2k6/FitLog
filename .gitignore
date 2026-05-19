@@ -25,5 +25,8 @@ Thumbs.db
 .idea/
 .vscode/
 
+# Local uploads (F-10 ローカルストレージ)
+backend/var/
+
 # Logs
 *.log
