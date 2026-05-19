@@ -10,3 +10,12 @@ USERNAME_ALREADY_TAKEN = "このユーザー名は既に使用されています
 WEAK_PASSWORD = "パスワードは8文字以上で、英字と数字を両方含めてください"
 INVALID_CREDENTIALS = "メールアドレスまたはパスワードが正しくありません"
 NOT_AUTHENTICATED = "認証が必要です"
+
+# F-04 ナイストレ / F-05 アドバイス
+WORKOUT_NOT_FOUND = "記録が見つかりません"
+CANNOT_CHEER_OWN = "自分の記録にはナイストレできません"
+ALREADY_CHEERED = "すでにナイストレ済みです"
+NOT_CHEERED = "ナイストレしていません"
+CANNOT_ADVISE_OWN = "自分の記録にはアドバイスできません"
+ADVICE_NOT_FOUND = "アドバイスが見つかりません"
+NOT_ADVICE_OWNER = "このアドバイスを削除する権限がありません"
