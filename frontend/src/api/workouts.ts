@@ -169,6 +169,11 @@ export async function listWorkouts(): Promise<WorkoutSummary[]> {
   return rows.map(mapSummary)
 }
 
+export async function listFeed(): Promise<WorkoutSummary[]> {
+  const rows = await api.get<SummaryRaw[]>('/feed')
+  return rows.map(mapSummary)
+}
+
 export async function getWorkout(id: number): Promise<WorkoutDetail> {
   return mapDetail(await api.get<DetailRaw>(`/workouts/${id}`))
 }
