@@ -19,3 +19,10 @@ NOT_CHEERED = "ナイストレしていません"
 CANNOT_ADVISE_OWN = "自分の記録にはアドバイスできません"
 ADVICE_NOT_FOUND = "アドバイスが見つかりません"
 NOT_ADVICE_OWNER = "このアドバイスを削除する権限がありません"
+
+# F-06 フォロー
+USER_NOT_FOUND = "ユーザーが見つかりません"
+CANNOT_FOLLOW_SELF = "自分自身はフォローできません"
+ALREADY_FOLLOWING = "すでにフォローしています"
+NOT_FOLLOWING = "フォローしていません"
+WORKOUT_NOT_VISIBLE = "この記録を閲覧する権限がありません"

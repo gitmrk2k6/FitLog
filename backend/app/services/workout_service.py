@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.models.workout import Workout
 from app.repositories.cheer_repository import CheerRepository
 from app.repositories.exercise_repository import ExerciseRepository
+from app.repositories.follow_repository import FollowRepository
 from app.repositories.workout_repository import WorkoutRepository
 from app.schemas.workout import (
     PrUpdateOut,
@@ -35,6 +36,7 @@ class WorkoutService:
         self.repo = WorkoutRepository(db)
         self.exercises = ExerciseRepository(db)
         self.cheers = CheerRepository(db)
+        self.follows = FollowRepository(db)
         self.pr = PersonalRecordService(db)
 
     # ---- 入力の種目検証 & フラットなセット列の構築 ----
@@ -113,16 +115,15 @@ class WorkoutService:
         self.pr.recompute_exercises(user_id, sorted(set(affected)))
         self.db.commit()
 
-    # ---- F-03 一覧 ----
-    def list_for_user(
-        self, user_id: int, *, limit: int, offset: int
+    # ---- 一覧の共通整形（集計を N+1 回避でまとめ取得） ----
+    def _summaries(
+        self, workouts: list[Workout], viewer_id: int
     ) -> list[WorkoutSummary]:
-        workouts = self.repo.list_by_user(user_id, limit=limit, offset=offset)
         ids = [w.id for w in workouts]
         set_agg = self.repo.set_aggregates(ids)
         cheers = self.repo.cheer_counts(ids)
         advices = self.repo.advice_counts(ids)
-        cheered = self.cheers.cheered_workout_ids(user_id, ids)
+        cheered = self.cheers.cheered_workout_ids(viewer_id, ids)
         result: list[WorkoutSummary] = []
         for w in workouts:
             ex_count, set_count, total = set_agg.get(
@@ -146,9 +147,34 @@ class WorkoutService:
             )
         return result
 
-    # ---- F-03 詳細（本人のみ。他者公開は F-06 で拡張予定） ----
+    # ---- F-03 一覧（自分の記録） ----
+    def list_for_user(
+        self, user_id: int, *, limit: int, offset: int
+    ) -> list[WorkoutSummary]:
+        workouts = self.repo.list_by_user(user_id, limit=limit, offset=offset)
+        return self._summaries(workouts, user_id)
+
+    # ---- F-06 フォロー中フィード ----
+    def feed(
+        self, user_id: int, *, limit: int, offset: int
+    ) -> list[WorkoutSummary]:
+        following_ids = self.follows.following_user_ids(user_id)
+        if not following_ids:
+            return []
+        workouts = self.repo.list_by_users(
+            following_ids, limit=limit, offset=offset
+        )
+        return self._summaries(workouts, user_id)
+
+    # ---- F-03/F-06 詳細（本人 or フォロー中ユーザーの記録のみ） ----
     def get_detail(self, user_id: int, workout_id: int) -> WorkoutDetail:
-        workout = self._owned(workout_id, user_id)
+        workout = self.repo.get(workout_id)
+        if workout is None:
+            raise WorkoutNotFoundError("記録が見つかりません")
+        if workout.user_id != user_id and (
+            self.follows.get(user_id, workout.user_id) is None
+        ):
+            raise NotWorkoutOwnerError("この記録を閲覧する権限がありません")
         return self._to_detail(workout, viewer_id=user_id)
 
     def _to_detail(
