@@ -3,6 +3,7 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 
 from app.models.workout import Workout
+from app.repositories.cheer_repository import CheerRepository
 from app.repositories.exercise_repository import ExerciseRepository
 from app.repositories.workout_repository import WorkoutRepository
 from app.schemas.workout import (
@@ -33,6 +34,7 @@ class WorkoutService:
         self.db = db
         self.repo = WorkoutRepository(db)
         self.exercises = ExerciseRepository(db)
+        self.cheers = CheerRepository(db)
         self.pr = PersonalRecordService(db)
 
     # ---- 入力の種目検証 & フラットなセット列の構築 ----
@@ -80,7 +82,7 @@ class WorkoutService:
         pr_updates = self.pr.apply_for_workout(user_id, workout.id)
         self.db.commit()
         self.db.refresh(workout)
-        return self._to_detail(workout, pr_updates)
+        return self._to_detail(workout, pr_updates, viewer_id=user_id)
 
     # ---- F-02 編集（全置換） ----
     def update(
@@ -100,7 +102,7 @@ class WorkoutService:
         self.pr.recompute_exercises(user_id, sorted(old_ex - current_ex))
         self.db.commit()
         self.db.refresh(workout)
-        return self._to_detail(workout, pr_updates)
+        return self._to_detail(workout, pr_updates, viewer_id=user_id)
 
     # ---- F-02 削除 ----
     def delete(self, user_id: int, workout_id: int) -> None:
@@ -120,6 +122,7 @@ class WorkoutService:
         set_agg = self.repo.set_aggregates(ids)
         cheers = self.repo.cheer_counts(ids)
         advices = self.repo.advice_counts(ids)
+        cheered = self.cheers.cheered_workout_ids(user_id, ids)
         result: list[WorkoutSummary] = []
         for w in workouts:
             ex_count, set_count, total = set_agg.get(
@@ -137,6 +140,7 @@ class WorkoutService:
                     total_volume=total,
                     cheers_count=cheers.get(w.id, 0),
                     advices_count=advices.get(w.id, 0),
+                    cheered_by_me=w.id in cheered,
                     created_at=w.created_at,
                 )
             )
@@ -145,10 +149,13 @@ class WorkoutService:
     # ---- F-03 詳細（本人のみ。他者公開は F-06 で拡張予定） ----
     def get_detail(self, user_id: int, workout_id: int) -> WorkoutDetail:
         workout = self._owned(workout_id, user_id)
-        return self._to_detail(workout)
+        return self._to_detail(workout, viewer_id=user_id)
 
     def _to_detail(
-        self, workout: Workout, pr_updates: list | None = None
+        self,
+        workout: Workout,
+        pr_updates: list | None = None,
+        viewer_id: int | None = None,
     ) -> WorkoutDetail:
         rows = self.repo.sets_with_exercise_name(workout.id)
         sets = [
@@ -167,6 +174,10 @@ class WorkoutService:
         ids = [workout.id]
         cheers = self.repo.cheer_counts(ids).get(workout.id, 0)
         advices = self.repo.advice_counts(ids).get(workout.id, 0)
+        cheered_by_me = (
+            viewer_id is not None
+            and self.cheers.get(workout.id, viewer_id) is not None
+        )
         return WorkoutDetail(
             id=workout.id,
             user_id=workout.user_id,
@@ -177,6 +188,7 @@ class WorkoutService:
             total_volume=total,
             cheers_count=cheers,
             advices_count=advices,
+            cheered_by_me=cheered_by_me,
             pr_updates=[
                 PrUpdateOut(exercise_id=u.exercise_id, metrics=u.metrics)
                 for u in (pr_updates or [])

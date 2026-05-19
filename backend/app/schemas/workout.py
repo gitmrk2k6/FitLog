@@ -70,6 +70,7 @@ class WorkoutSummary(BaseModel):
     total_volume: Decimal
     cheers_count: int
     advices_count: int
+    cheered_by_me: bool = False  # F-04: viewer が付与済みか
     created_at: datetime
 
 
@@ -92,6 +93,7 @@ class WorkoutDetail(BaseModel):
     total_volume: Decimal
     cheers_count: int
     advices_count: int
+    cheered_by_me: bool = False  # F-04: viewer が付与済みか
     pr_updates: list[PrUpdateOut] = []
     created_at: datetime
     updated_at: datetime
