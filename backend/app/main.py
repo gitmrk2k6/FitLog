@@ -9,6 +9,7 @@ from app.routers import (
     dashboard,
     exercises,
     feed,
+    goals,
     users,
     workouts,
 )
@@ -32,6 +33,7 @@ app.include_router(cheers.router)
 app.include_router(advices.router)
 app.include_router(users.router)
 app.include_router(feed.router)
+app.include_router(goals.router)
 app.include_router(dashboard.router)
 
 
