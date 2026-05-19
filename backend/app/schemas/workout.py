@@ -73,6 +73,13 @@ class WorkoutSummary(BaseModel):
     created_at: datetime
 
 
+class PrUpdateOut(BaseModel):
+    """F-09: この保存で更新された自己ベスト指標。"""
+
+    exercise_id: int
+    metrics: list[str]  # max_weight / best_volume / best_est_1rm
+
+
 class WorkoutDetail(BaseModel):
     """詳細用（F-03 詳細表示）。sets はフラット、種目別はクライアントで集約。"""
 
@@ -85,5 +92,6 @@ class WorkoutDetail(BaseModel):
     total_volume: Decimal
     cheers_count: int
     advices_count: int
+    pr_updates: list[PrUpdateOut] = []
     created_at: datetime
     updated_at: datetime
