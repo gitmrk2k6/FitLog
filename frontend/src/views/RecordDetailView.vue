@@ -1,56 +1,79 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { store } from '../mock/store'
-import { totalVolume, personalRecords, estimated1RM } from '../lib/stats'
+
+import { ApiError } from '../api/client'
+import {
+  deleteWorkout,
+  getWorkout,
+  type WorkoutDetail,
+} from '../api/workouts'
 
 const route = useRoute()
 const router = useRouter()
 const id = Number(route.params.id)
-const workout = computed(() => store.workouts.find((w) => w.id === id))
 
-const prByEx = computed(() => {
-  const m = new Map<number, number>()
-  for (const p of personalRecords(store.workouts)) m.set(p.exerciseId, p.best1RM)
-  return m
+const workout = ref<WorkoutDetail | null>(null)
+const loading = ref(true)
+const error = ref('')
+
+onMounted(async () => {
+  try {
+    workout.value = await getWorkout(id)
+  } catch (e) {
+    error.value =
+      e instanceof ApiError ? e.message : '読み込みに失敗しました'
+  } finally {
+    loading.value = false
+  }
 })
 
 const grouped = computed(() => {
-  const g = new Map<string, { name: string; sets: typeof workout.value.sets; exerciseId: number }>()
+  const g = new Map<
+    string,
+    { name: string; exerciseId: number; isPr: boolean; sets: string[] }
+  >()
   for (const s of workout.value?.sets ?? []) {
-    if (!g.has(s.exerciseName)) g.set(s.exerciseName, { name: s.exerciseName, sets: [], exerciseId: s.exerciseId })
-    g.get(s.exerciseName)!.sets.push(s)
+    if (!g.has(s.exerciseName)) {
+      g.set(s.exerciseName, {
+        name: s.exerciseName,
+        exerciseId: s.exerciseId,
+        isPr: false,
+        sets: [],
+      })
+    }
+    const e = g.get(s.exerciseName)!
+    e.sets.push(`${s.weightKg}kg×${s.reps}`)
+    if (s.isPr) e.isPr = true // F-09 はバックエンドが判定済み
   }
   return [...g.values()]
 })
 
-function isPrEx(exerciseId: number): boolean {
-  const top = prByEx.value.get(exerciseId)
-  if (top === undefined) return false
-  return (workout.value?.sets ?? []).some(
-    (s) => s.exerciseId === exerciseId && estimated1RM(s.weightKg, s.reps) >= top,
-  )
-}
-
-const cheered = ref(false)
-const advices = ref<{ user: string; content: string }[]>([
-  { user: 'kenta', content: 'いいペースですね、応援してます！' },
-])
-const newAdvice = ref('')
-function postAdvice() {
-  if (!newAdvice.value.trim()) return
-  advices.value.push({ user: 'you', content: newAdvice.value })
-  newAdvice.value = ''
+async function remove() {
+  if (!confirm('この記録を削除しますか？')) return
+  try {
+    await deleteWorkout(id)
+    router.push('/list')
+  } catch (e) {
+    error.value = e instanceof ApiError ? e.message : '削除に失敗しました'
+  }
 }
 </script>
 
 <template>
-  <div v-if="workout">
+  <p v-if="loading" class="card muted">読み込み中…</p>
+  <div v-else-if="error" class="card muted" style="color:#e66">{{ error }}</div>
+  <div v-else-if="workout">
     <div class="row" style="justify-content:space-between; margin-bottom:14px">
       <h1 style="font-size:20px">{{ workout.performedOn }} の記録</h1>
       <div class="row">
-        <button class="btn small secondary" @click="router.push('/record')">編集</button>
-        <button class="btn small secondary" @click="router.push('/list')">削除</button>
+        <button
+          class="btn small secondary"
+          @click="router.push(`/record?id=${workout.id}`)"
+        >
+          編集
+        </button>
+        <button class="btn small secondary" @click="remove">削除</button>
       </div>
     </div>
 
@@ -58,31 +81,23 @@ function postAdvice() {
       <div v-for="g in grouped" :key="g.name" style="margin-bottom:14px">
         <div class="row" style="justify-content:space-between">
           <strong>{{ g.name }}</strong>
-          <span v-if="isPrEx(g.exerciseId)" class="tag">自己ベスト更新🏅</span>
+          <span v-if="g.isPr" class="tag">自己ベスト更新🏅</span>
         </div>
-        <div class="muted">
-          {{ g.sets.map((s) => `${s.weightKg}kg×${s.reps}`).join(' / ') }}
-        </div>
+        <div class="muted">{{ g.sets.join(' / ') }}</div>
       </div>
-      <div class="muted" v-if="workout.memo">メモ: {{ workout.memo }}</div>
-      <div class="muted">総ボリューム: {{ totalVolume(workout).toLocaleString() }} kg</div>
+      <div v-if="workout.memo" class="muted">メモ: {{ workout.memo }}</div>
+      <div class="muted">
+        総ボリューム: {{ workout.totalVolume.toLocaleString() }} kg
+      </div>
     </div>
 
     <div class="card">
-      <h2>ナイストレーニング</h2>
-      <button class="btn small" :class="{ secondary: cheered }" @click="cheered = !cheered">
-        {{ cheered ? '✓ ナイストレ済み' : '👍 ナイストレ' }}
-      </button>
-    </div>
-
-    <div class="card">
-      <h2>アドバイス・応援</h2>
-      <div v-for="(a, i) in advices" :key="i" style="padding:8px 0; border-bottom:1px solid var(--border)">
-        <strong>{{ a.user }}</strong> <span class="muted">{{ a.content }}</span>
+      <h2>ナイストレーニング / アドバイス</h2>
+      <div class="muted">
+        ♡ {{ workout.cheersCount }} ・ 💬 {{ workout.advicesCount }}
       </div>
-      <div class="row" style="margin-top:12px">
-        <input v-model="newAdvice" placeholder="応援コメントを送る" />
-        <button class="btn small" @click="postAdvice">送信</button>
+      <div class="muted" style="margin-top:6px">
+        ※ 付与・コメント機能は後続スライス（F-04/F-05）で接続します
       </div>
     </div>
   </div>
