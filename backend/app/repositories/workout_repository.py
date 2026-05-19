@@ -31,6 +31,21 @@ class WorkoutRepository:
         )
         return list(self.db.scalars(stmt))
 
+    def list_by_users(
+        self, user_ids: Sequence[int], *, limit: int, offset: int
+    ) -> list[Workout]:
+        """複数ユーザーの記録を実施日降順で（F-06 フォロー中フィード）。"""
+        if not user_ids:
+            return []
+        stmt = (
+            select(Workout)
+            .where(Workout.user_id.in_(user_ids))
+            .order_by(Workout.performed_on.desc(), Workout.created_at.desc())
+            .limit(limit)
+            .offset(offset)
+        )
+        return list(self.db.scalars(stmt))
+
     def sets_with_exercise_name(
         self, workout_id: int
     ) -> list[tuple[WorkoutSet, str]]:

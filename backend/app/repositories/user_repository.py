@@ -16,6 +16,21 @@ class UserRepository:
     def get_by_email(self, email: str) -> User | None:
         return self.db.scalar(select(User).where(User.email == email))
 
+    def search_by_username(
+        self, query: str, *, exclude_id: int, limit: int = 20
+    ) -> list[User]:
+        """ユーザー名の部分一致検索（自分自身は除外、username 昇順）。"""
+        stmt = (
+            select(User)
+            .where(
+                User.username.ilike(f"%{query}%"),
+                User.id != exclude_id,
+            )
+            .order_by(User.username.asc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(stmt))
+
     def get_by_username(self, username: str) -> User | None:
         return self.db.scalar(select(User).where(User.username == username))
 
