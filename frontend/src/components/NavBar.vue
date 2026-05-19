@@ -1,6 +1,10 @@
 <script setup lang="ts">
-import { RouterLink, useRoute } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+
+import { auth } from '../stores/auth'
+
 const route = useRoute()
+const router = useRouter()
 const links = [
   { to: '/dashboard', label: 'ダッシュボード' },
   { to: '/record', label: '記録' },
@@ -10,6 +14,11 @@ const links = [
   { to: '/search', label: '検索' },
   { to: '/goal', label: '目標' },
 ]
+
+function logout() {
+  auth.logout()
+  router.push({ name: 'login' })
+}
 </script>
 
 <template>
@@ -22,6 +31,22 @@ const links = [
       :class="{ active: route.path.startsWith(l.to) }"
       >{{ l.label }}</RouterLink
     >
-    <RouterLink to="/" style="margin-left:auto" class="muted">ログアウト</RouterLink>
+    <button
+      type="button"
+      class="muted nav-logout"
+      style="margin-left:auto"
+      @click="logout"
+    >
+      ログアウト
+    </button>
   </nav>
 </template>
+
+<style scoped>
+.nav-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font: inherit;
+}
+</style>
