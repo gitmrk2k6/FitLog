@@ -56,7 +56,7 @@ RaiseTech AIエンジニアコース **中級編 最終課題**
 
 FitLog の本質は **時系列データの集計・可視化と継続支援**（週月集計・達成率・ストリーク・ヒートマップ・自己ベスト）であり、教材 RaiseTimeLine の山場（リアルタイム SNS フィード）とは性質が異なる。
 
-- **Python / FastAPI** — AIエンジニアコースの中核言語と一致。集計・分析処理と相性がよく、Pydantic による型安全な入出力が学べる
+- **Python / FastAPI** — AI/ML 分野の標準言語である Python を選ぶことで、将来の AI 機能追加（データ分析・推薦等）に備えられる。FastAPI は Pydantic による型安全な入出力と OpenAPI 自動生成を備えた現代的なフレームワークであり、Java/Spring Boot とは異なる設計思想を経験できる
 - **SQLAlchemy + PostgreSQL** — `date_trunc` / `generate_series` / ウィンドウ関数が週月集計・ヒートマップ・ストリーク算出に直結。MyBatis と異なるアプローチの ORM を経験
 - **Vue 3** — React/Next.js と別系統のフレームワーク。ダッシュボード/グラフ中心の SPA と相性がよく Vite で高速開発
 
