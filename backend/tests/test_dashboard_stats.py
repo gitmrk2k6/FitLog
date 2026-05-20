@@ -12,12 +12,12 @@ def ex_ids(common_exercises):
 
 
 def _me(client, headers) -> int:
-    return client.get("/auth/me", headers=headers).json()["id"]
+    return client.get("/api/auth/me", headers=headers).json()["id"]
 
 
 def _create_workout(client, headers, ex_id, performed_on: str):
     res = client.post(
-        "/workouts",
+        "/api/workouts",
         headers=headers,
         json={
             "performed_on": performed_on,
@@ -31,21 +31,21 @@ def _create_workout(client, headers, ex_id, performed_on: str):
 
 # ---- API スモーク（認証・形） ----
 def test_stats_require_auth(client):
-    assert client.get("/dashboard/streak").status_code == 401
-    assert client.get("/dashboard/heatmap").status_code == 401
+    assert client.get("/api/dashboard/streak").status_code == 401
+    assert client.get("/api/dashboard/heatmap").status_code == 401
 
 
 def test_heatmap_months_out_of_range_422(client, auth_headers):
     assert client.get(
-        "/dashboard/heatmap?months=0", headers=auth_headers
+        "/api/dashboard/heatmap?months=0", headers=auth_headers
     ).status_code == 422
     assert client.get(
-        "/dashboard/heatmap?months=13", headers=auth_headers
+        "/api/dashboard/heatmap?months=13", headers=auth_headers
     ).status_code == 422
 
 
 def test_streak_endpoint_shape(client, auth_headers):
-    body = client.get("/dashboard/streak", headers=auth_headers).json()
+    body = client.get("/api/dashboard/streak", headers=auth_headers).json()
     assert body == {"current": 0, "longest": 0}
 
 

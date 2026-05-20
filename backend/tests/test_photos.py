@@ -31,7 +31,7 @@ def storage_dir(tmp_path, client):
 
 def _create_workout(client, headers, ex_id) -> int:
     res = client.post(
-        "/workouts",
+        "/api/workouts",
         headers=headers,
         json={
             "performed_on": "2026-05-18",
@@ -46,7 +46,7 @@ def _create_workout(client, headers, ex_id) -> int:
 
 def _put(client, wid, headers, name, data, ctype):
     return client.put(
-        f"/workouts/{wid}/photo",
+        f"/api/workouts/{wid}/photo",
         headers=headers,
         files={"file": (name, data, ctype)},
     )
@@ -55,7 +55,7 @@ def _put(client, wid, headers, name, data, ctype):
 def test_upload_requires_auth(client, auth_headers, ex_ids, storage_dir):
     wid = _create_workout(client, auth_headers, ex_ids[0])
     res = client.put(
-        f"/workouts/{wid}/photo",
+        f"/api/workouts/{wid}/photo",
         files={"file": ("a.png", PNG_BYTES, "image/png")},
     )
     assert res.status_code == 401
@@ -126,7 +126,7 @@ def test_upload_success_persists_file(
     assert saved.exists()
     assert saved.read_bytes() == data
     # 詳細にも反映
-    detail = client.get(f"/workouts/{wid}", headers=auth_headers).json()
+    detail = client.get(f"/api/workouts/{wid}", headers=auth_headers).json()
     assert detail["photo_url"] == body["photo_url"]
 
 
@@ -135,8 +135,8 @@ def test_delete_photo_clears_url(
 ):
     wid = _create_workout(client, auth_headers, ex_ids[0])
     _put(client, wid, auth_headers, "a.png", PNG_BYTES, "image/png")
-    res = client.delete(f"/workouts/{wid}/photo", headers=auth_headers)
+    res = client.delete(f"/api/workouts/{wid}/photo", headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["photo_url"] is None
-    detail = client.get(f"/workouts/{wid}", headers=auth_headers).json()
+    detail = client.get(f"/api/workouts/{wid}", headers=auth_headers).json()
     assert detail["photo_url"] is None

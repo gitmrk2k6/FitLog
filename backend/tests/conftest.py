@@ -80,11 +80,11 @@ def common_exercises(db_session):
 
 def _auth(client, username: str, email: str) -> dict[str, str]:
     client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={"username": username, "email": email, "password": "pass1234"},
     )
     token = client.post(
-        "/auth/login", json={"email": email, "password": "pass1234"}
+        "/api/auth/login", json={"email": email, "password": "pass1234"}
     ).json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 

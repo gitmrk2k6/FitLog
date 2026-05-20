@@ -13,12 +13,12 @@ def ex_ids(common_exercises):
 
 
 def _me(client, headers) -> int:
-    return client.get("/auth/me", headers=headers).json()["id"]
+    return client.get("/api/auth/me", headers=headers).json()["id"]
 
 
 def _create_workout(client, headers, ex_id, performed_on: str):
     res = client.post(
-        "/workouts",
+        "/api/workouts",
         headers=headers,
         json={
             "performed_on": performed_on,
@@ -33,15 +33,15 @@ def _create_workout(client, headers, ex_id, performed_on: str):
 
 # ---- CRUD（API・決定的） ----
 def test_goals_requires_auth(client):
-    assert client.get("/goals").status_code == 401
-    assert client.get("/dashboard/achievements").status_code == 401
+    assert client.get("/api/goals").status_code == 401
+    assert client.get("/api/dashboard/achievements").status_code == 401
 
 
 def test_goal_upsert_keeps_one_per_period(client, auth_headers):
-    assert client.get("/goals", headers=auth_headers).json() == []
+    assert client.get("/api/goals", headers=auth_headers).json() == []
 
     r1 = client.put(
-        "/goals",
+        "/api/goals",
         headers=auth_headers,
         json={"period_type": "weekly", "metric": "sessions",
               "target_value": 3},
@@ -52,26 +52,26 @@ def test_goal_upsert_keeps_one_per_period(client, auth_headers):
 
     # 同一 period_type は upsert（件数は増えず内容更新）
     r2 = client.put(
-        "/goals",
+        "/api/goals",
         headers=auth_headers,
         json={"period_type": "weekly", "metric": "volume",
               "target_value": 5000},
     )
     assert r2.status_code == 200
-    goals = client.get("/goals", headers=auth_headers).json()
+    goals = client.get("/api/goals", headers=auth_headers).json()
     assert len(goals) == 1
     assert goals[0]["metric"] == "volume"
     assert goals[0]["target_value"] == "5000"
 
 
 def test_goal_list_sorted_by_period_type(client, auth_headers):
-    client.put("/goals", headers=auth_headers,
+    client.put("/api/goals", headers=auth_headers,
                json={"period_type": "weekly", "metric": "sessions",
                      "target_value": 3})
-    client.put("/goals", headers=auth_headers,
+    client.put("/api/goals", headers=auth_headers,
                json={"period_type": "monthly", "metric": "volume",
                      "target_value": 20000})
-    goals = client.get("/goals", headers=auth_headers).json()
+    goals = client.get("/api/goals", headers=auth_headers).json()
     assert [g["period_type"] for g in goals] == ["monthly", "weekly"]
 
 
@@ -86,27 +86,27 @@ def test_goal_list_sorted_by_period_type(client, auth_headers):
 )
 def test_goal_validation_422(client, auth_headers, body):
     assert client.put(
-        "/goals", headers=auth_headers, json=body
+        "/api/goals", headers=auth_headers, json=body
     ).status_code == 422
 
 
 def test_goal_delete(client, auth_headers):
-    client.put("/goals", headers=auth_headers,
+    client.put("/api/goals", headers=auth_headers,
                json={"period_type": "weekly", "metric": "sessions",
                      "target_value": 3})
     assert client.delete(
-        "/goals/weekly", headers=auth_headers
+        "/api/goals/weekly", headers=auth_headers
     ).status_code == 204
-    assert client.get("/goals", headers=auth_headers).json() == []
+    assert client.get("/api/goals", headers=auth_headers).json() == []
     # 未設定の削除は 404
     assert client.delete(
-        "/goals/weekly", headers=auth_headers
+        "/api/goals/weekly", headers=auth_headers
     ).status_code == 404
 
 
 def test_trend_without_goal_404(client, auth_headers):
     assert client.get(
-        "/goals/weekly/trend", headers=auth_headers
+        "/api/goals/weekly/trend", headers=auth_headers
     ).status_code == 404
 
 
@@ -127,7 +127,7 @@ def test_current_achievement_sessions(
         client, auth_headers, ex_ids[0],
         (wk - timedelta(days=3)).isoformat()
     )
-    client.put("/goals", headers=auth_headers,
+    client.put("/api/goals", headers=auth_headers,
                json={"period_type": "weekly", "metric": "sessions",
                      "target_value": 3})
 
@@ -153,7 +153,7 @@ def test_current_achievement_volume_over_target(
         client, auth_headers, ex_ids[0],
         (wk + timedelta(days=1)).isoformat()
     )
-    client.put("/goals", headers=auth_headers,
+    client.put("/api/goals", headers=auth_headers,
                json={"period_type": "weekly", "metric": "volume",
                      "target_value": 1000})
 
@@ -171,7 +171,7 @@ def test_trend_buckets_fill_gaps(
     wk = start_of_week(ref)
     # 当週のみ実施（過去週は記録なし＝0で埋まる）
     _create_workout(client, auth_headers, ex_ids[0], wk.isoformat())
-    client.put("/goals", headers=auth_headers,
+    client.put("/api/goals", headers=auth_headers,
                json={"period_type": "weekly", "metric": "sessions",
                      "target_value": 2})
 

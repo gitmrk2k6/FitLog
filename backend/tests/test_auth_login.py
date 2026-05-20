@@ -9,7 +9,7 @@ VALID = {
 
 
 def _register(client):
-    res = client.post("/auth/register", json=VALID)
+    res = client.post("/api/auth/register", json=VALID)
     assert res.status_code == 201
     return res.json()
 
@@ -17,7 +17,7 @@ def _register(client):
 def test_login_success_returns_valid_jwt(client):
     user = _register(client)
     res = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"email": VALID["email"], "password": VALID["password"]},
     )
     assert res.status_code == 200
@@ -29,7 +29,7 @@ def test_login_success_returns_valid_jwt(client):
 def test_login_wrong_password(client):
     _register(client)
     res = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"email": VALID["email"], "password": "wrongpass1"},
     )
     assert res.status_code == 401
@@ -38,7 +38,7 @@ def test_login_wrong_password(client):
 
 def test_login_nonexistent_email(client):
     res = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"email": "nobody@example.com", "password": "whatever1"},
     )
     assert res.status_code == 401

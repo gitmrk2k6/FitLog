@@ -8,7 +8,7 @@ def ex_ids(common_exercises):
 
 def _create_workout(client, headers, ex_id, performed_on="2026-05-18") -> int:
     res = client.post(
-        "/workouts",
+        "/api/workouts",
         headers=headers,
         json={
             "performed_on": performed_on,
@@ -23,13 +23,13 @@ def _create_workout(client, headers, ex_id, performed_on="2026-05-18") -> int:
 
 def _advice(client, headers, wid, content):
     return client.post(
-        f"/workouts/{wid}/advices", headers=headers, json={"content": content}
+        f"/api/workouts/{wid}/advices", headers=headers, json={"content": content}
     )
 
 
 def test_advice_requires_auth(client, auth_headers, ex_ids):
     wid = _create_workout(client, auth_headers, ex_ids[0])
-    res = client.post(f"/workouts/{wid}/advices", json={"content": "がんば"})
+    res = client.post(f"/api/workouts/{wid}/advices", json={"content": "がんば"})
     assert res.status_code == 401
 
 
@@ -77,7 +77,7 @@ def test_list_ascending_by_created(
     wid = _create_workout(client, auth_headers, ex_ids[0])
     _advice(client, other_headers, wid, "1つ目")
     _advice(client, other_headers, wid, "2つ目")
-    res = client.get(f"/workouts/{wid}/advices", headers=auth_headers)
+    res = client.get(f"/api/workouts/{wid}/advices", headers=auth_headers)
     assert res.status_code == 200
     items = res.json()
     assert [a["content"] for a in items] == ["1つ目", "2つ目"]
@@ -90,11 +90,11 @@ def test_delete_own_advice_204(
     wid = _create_workout(client, auth_headers, ex_ids[0])
     aid = _advice(client, other_headers, wid, "消す").json()["id"]
     assert (
-        client.delete(f"/advices/{aid}", headers=other_headers).status_code
+        client.delete(f"/api/advices/{aid}", headers=other_headers).status_code
         == 204
     )
     assert client.get(
-        f"/workouts/{wid}/advices", headers=auth_headers
+        f"/api/workouts/{wid}/advices", headers=auth_headers
     ).json() == []
 
 
@@ -104,14 +104,14 @@ def test_delete_others_advice_403(
     wid = _create_workout(client, auth_headers, ex_ids[0])
     aid = _advice(client, other_headers, wid, "他人のは消せない").json()["id"]
     assert (
-        client.delete(f"/advices/{aid}", headers=auth_headers).status_code
+        client.delete(f"/api/advices/{aid}", headers=auth_headers).status_code
         == 403
     )
 
 
 def test_delete_nonexistent_advice_404(client, other_headers):
     assert (
-        client.delete("/advices/999999", headers=other_headers).status_code
+        client.delete("/api/advices/999999", headers=other_headers).status_code
         == 404
     )
 
@@ -125,7 +125,7 @@ def test_workout_delete_cascades_advices(
     _advice(client, other_headers, wid, "応援")
     assert db_session.query(Advice).filter_by(workout_id=wid).count() == 1
     assert (
-        client.delete(f"/workouts/{wid}", headers=auth_headers).status_code
+        client.delete(f"/api/workouts/{wid}", headers=auth_headers).status_code
         == 204
     )
     assert db_session.query(Advice).filter_by(workout_id=wid).count() == 0
