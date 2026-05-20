@@ -1,7 +1,7 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 from app.core.config import get_settings
 from app.db.base import Base  # 全モデルを metadata に登録
@@ -11,15 +11,13 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# settings から接続先を注入（alembic.ini にはURLを書かない）
-config.set_main_option("sqlalchemy.url", get_settings().database_url)
-
+# configparser を経由しないことで DATABASE_URL 内の % を安全に扱う
 target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
     context.configure(
-        url=config.get_main_option("sqlalchemy.url"),
+        url=get_settings().database_url,
         target_metadata=target_metadata,
         literal_binds=True,
         compare_type=True,
@@ -30,9 +28,8 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
-        prefix="sqlalchemy.",
+    connectable = create_engine(
+        get_settings().database_url,
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
