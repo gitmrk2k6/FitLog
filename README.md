@@ -82,8 +82,6 @@ ECS Fargate
 RDS（PostgreSQL 17）
 ```
 
-教材 RaiseTimeLine の AWS 構成（ECS Fargate + RDS + ALB + CloudFront + S3）を流用し、アプリ層の実装に注力した。
-
 ---
 
 ## テスト
