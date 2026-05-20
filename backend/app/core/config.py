@@ -24,6 +24,10 @@ class Settings(BaseSettings):
 
     frontend_origin: str = "http://localhost:3000"
 
+    # 監視・ログ設定
+    env: str = "development"          # production / staging / development
+    log_level: str = "INFO"           # DEBUG / INFO / WARNING / ERROR / CRITICAL
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
