@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date as _date
 from decimal import Decimal
 
 from pydantic import BaseModel, Field
@@ -14,7 +14,7 @@ class StreakOut(BaseModel):
 class HeatmapCell(BaseModel):
     """F-08 ヒートマップの1日。記録なし日も volume=0 で出力。"""
 
-    date: date = Field(description="日付（YYYY-MM-DD）")
+    date: _date = Field(description="日付（YYYY-MM-DD）")
     volume: Decimal = Field(description="その日の総ボリューム（kg × reps の合計、記録なし=0）")
 
 
@@ -26,12 +26,12 @@ class PersonalRecordOut(BaseModel):
     # ① 最大重量
     max_weight_kg: Decimal | None = Field(description="最大重量（kg）")
     max_weight_reps: int | None = Field(description="最大重量時のレップ数")
-    max_weight_on: date | None = Field(description="最大重量を達成した日")
+    max_weight_on: _date | None = Field(description="最大重量を達成した日")
     # ② ベストボリューム
     best_volume: Decimal | None = Field(description="1日の最大総ボリューム（kg × reps）")
-    best_volume_on: date | None = Field(description="ベストボリュームを達成した日")
+    best_volume_on: _date | None = Field(description="ベストボリュームを達成した日")
     # ③ 推定1RMベスト
     best_est_1rm: Decimal | None = Field(description="推定1RM最大値（kg）")
     best_1rm_weight_kg: Decimal | None = Field(description="推定1RM算出時の重量（kg）")
     best_1rm_reps: int | None = Field(description="推定1RM算出時のレップ数")
-    best_1rm_on: date | None = Field(description="推定1RMベストを達成した日")
+    best_1rm_on: _date | None = Field(description="推定1RMベストを達成した日")
