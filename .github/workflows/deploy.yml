@@ -49,9 +49,7 @@ jobs:
           aws ecs wait services-stable \
             --cluster ${{ env.ECS_CLUSTER }} \
             --services ${{ env.ECS_SERVICE }} \
-            --region ${{ env.AWS_REGION }} \
-            --delay 15 \
-            --max-attempts 60
+            --region ${{ env.AWS_REGION }}
 
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
