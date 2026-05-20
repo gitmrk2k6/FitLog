@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 from app.core.messages import WEAK_PASSWORD
 
@@ -10,9 +10,9 @@ _HAS_DIGIT = re.compile(r"\d")
 
 
 class RegisterRequest(BaseModel):
-    username: str
-    email: EmailStr
-    password: str
+    username: str = Field(description="ユーザー名（1〜50文字）", examples=["alice"])
+    email: EmailStr = Field(description="メールアドレス", examples=["alice@example.com"])
+    password: str = Field(description="パスワード（8文字以上、英字+数字を含む）", examples=["pass1234"])
 
     @field_validator("username")
     @classmethod
@@ -32,21 +32,33 @@ class RegisterRequest(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str
+    email: EmailStr = Field(description="登録済みメールアドレス", examples=["alice@example.com"])
+    password: str = Field(description="パスワード", examples=["pass1234"])
 
 
 class UserOut(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_schema_extra={
+            "example": {
+                "id": 1,
+                "username": "alice",
+                "email": "alice@example.com",
+                "profile_image_url": None,
+                "bio": "筋トレ好き",
+                "created_at": "2026-01-01T00:00:00",
+            }
+        },
+    )
 
-    id: int
-    username: str
-    email: EmailStr
-    profile_image_url: str | None = None
-    bio: str | None = None
-    created_at: datetime
+    id: int = Field(description="ユーザーID")
+    username: str = Field(description="ユーザー名")
+    email: EmailStr = Field(description="メールアドレス")
+    profile_image_url: str | None = Field(default=None, description="プロフィール画像URL")
+    bio: str | None = Field(default=None, description="自己紹介文")
+    created_at: datetime = Field(description="アカウント作成日時（UTC）")
 
 
 class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
+    access_token: str = Field(description="JWT アクセストークン")
+    token_type: str = Field(default="bearer", description="トークンタイプ（常に bearer）")
