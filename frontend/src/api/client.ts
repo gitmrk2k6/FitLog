@@ -1,4 +1,5 @@
 // fetch の薄いラッパー。JWT 自動付与・エラー正規化・JSON/空応答の扱いを一元化。
+import { logger } from '../lib/logger'
 import { getToken } from './token'
 
 const BASE = import.meta.env.VITE_API_BASE ?? 'http://localhost:8000'
@@ -33,7 +34,18 @@ async function request<T>(
     body = JSON.stringify(opts.json)
   }
 
-  const res = await fetch(`${BASE}${path}`, { method, headers, body })
+  let res: Response
+  try {
+    res = await fetch(`${BASE}${path}`, { method, headers, body })
+  } catch (networkErr) {
+    // fetch 自体の失敗（ネットワーク断・CORS プリフライト失敗等）
+    logger.error('network error', {
+      method,
+      path,
+      error: networkErr instanceof Error ? networkErr.message : String(networkErr),
+    })
+    throw networkErr
+  }
 
   if (res.status === 204) return null as T
   const text = await res.text()
