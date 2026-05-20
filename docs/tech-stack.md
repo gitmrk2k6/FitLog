@@ -27,12 +27,12 @@
 | フォーム/型 | React Hook Form + Zod | **ネイティブHTML5バリデーション + TypeScript** | 入力項目が少なく外部ライブラリのオーバーヘッドが不要な規模のため、`<input required>`等のHTML5バリデーション＋バックエンドのエラーレスポンス表示で対応。型安全はTypeScriptとPydanticスキーマで担保 |
 | データDB | PostgreSQL 17 | **PostgreSQL（継続採用）** | 集計に強く意図的に流用。`date_trunc` / ウィンドウ関数 / `generate_series` が週月集計・ヒートマップ・ストリーク算出に直結。教材資産（RDS構成）も流用可 |
 | 認証 | Spring Security + JJWT | **JWT（python-jose / passlib[bcrypt]）** | 認証方式（JWT）の知見は流用しつつ実装言語を刷新 |
-| テスト | JUnit / Vitest | **pytest（バックエンド）/ Vitest（フロント）** | 機能実装と同時にテストを書く方針（教材では後追い一括だった反省） |
+| テスト | JUnit / Vitest | **pytest（バックエンド）/ Vitest（フロント単体）/ Playwright E2E + k6（結合・性能）** | 機能実装と同時にテストを書く方針（教材では後追い一括だった反省） |
 | インフラ | AWS ECS Fargate + CloudFront + S3 + RDS + ALB + Terraform | **同構成を流用** | 課題はアプリ層の刷新が趣旨。AWS は教材と同じ構成でよく、IaC 資産を再利用して工数を集計・継続機能に集中 |
 
 ---
 
-## 3. プロジェクト構成（予定）
+## 3. プロジェクト構成
 
 ```text
 FitLog/
@@ -44,13 +44,20 @@ FitLog/
       repositories/
       models/           # SQLAlchemy モデル
       schemas/          # pydantic スキーマ
+      core/             # 純粋ロジック（PR判定・集計・ストリーク等）
+      middleware/       # RequestLoggingMiddleware（JSON構造化ログ）
+      storage/          # ストレージ抽象（LocalStorage / S3Storage）
     tests/              # pytest（機能と同時に作成）
   frontend/             # Vue 3 + Vite + TS
     src/
       views/
       components/
-      composables/
-    tests/              # Vitest
+      api/              # fetch薄ラッパー（APIクライアント層）
+      stores/           # Pinia ストア（認証状態）
+      lib/              # 純粋ロジック（stats.ts / logger.ts）
+    e2e/                # Playwright E2E テスト（シナリオ別）
+  performance/
+    k6/                 # k6 パフォーマンステスト
   docker-compose.yml    # PostgreSQL（ローカル）
 ```
 
@@ -90,6 +97,7 @@ FitLog/
 | email-validator | 2.2.0 |
 | python-multipart | 0.0.20 |
 | boto3 | 1.35.99 |
+| python-json-logger | 2.0.7 |
 | pytest (dev) | 8.3.4 |
 | httpx (dev) | 0.28.1 |
 
