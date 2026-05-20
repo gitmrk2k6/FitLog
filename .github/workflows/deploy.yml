@@ -51,7 +51,7 @@ jobs:
             --services ${{ env.ECS_SERVICE }} \
             --region ${{ env.AWS_REGION }} \
             --delay 15 \
-            --max-attempts 40
+            --max-attempts 60
 
   deploy-frontend:
     name: Deploy Frontend (S3 + CloudFront)
