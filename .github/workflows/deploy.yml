@@ -89,8 +89,8 @@ jobs:
           aws s3 sync frontend/dist/ s3://${{ secrets.FRONTEND_BUCKET_NAME }}/ \
             --delete \
             --cache-control "no-cache" \
-            --include "*.html" \
-            --exclude "*"
+            --exclude "*" \
+            --include "*.html"
 
       - name: Sync static assets to S3 (long-cache)
         run: |
