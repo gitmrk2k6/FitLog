@@ -28,6 +28,13 @@ def _handle(exc: Exception) -> HTTPException:
     "/workouts/{workout_id}/advices",
     response_model=AdviceOut,
     status_code=status.HTTP_201_CREATED,
+    summary="アドバイスを投稿",
+    description="指定ワークアウットにアドバイスコメントを投稿します。自分のワークアウットへは投稿できません（F-05）。",
+    responses={
+        401: {"description": "未認証"},
+        403: {"description": "自分のワークアウットへのアドバイスは不可"},
+        404: {"description": "ワークアウットが見つからない"},
+    },
 )
 def create_advice(
     workout_id: int,
@@ -44,7 +51,14 @@ def create_advice(
 
 
 @router.get(
-    "/workouts/{workout_id}/advices", response_model=list[AdviceOut]
+    "/workouts/{workout_id}/advices",
+    response_model=list[AdviceOut],
+    summary="ワークアウットのアドバイス一覧取得",
+    description="指定ワークアウットに投稿されたアドバイスを投稿日時昇順で返します（F-05）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "ワークアウットが見つからない"},
+    },
 )
 def list_advices(
     workout_id: int,
@@ -58,7 +72,15 @@ def list_advices(
 
 
 @router.delete(
-    "/advices/{advice_id}", status_code=status.HTTP_204_NO_CONTENT
+    "/advices/{advice_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="アドバイスを削除（投稿者のみ可）",
+    description="自分が投稿したアドバイスを削除します。他ユーザーのアドバイスは削除できません（F-05）。",
+    responses={
+        401: {"description": "未認証"},
+        403: {"description": "他ユーザーのアドバイスへの操作は不可"},
+        404: {"description": "アドバイスが見つからない"},
+    },
 )
 def delete_advice(
     advice_id: int,

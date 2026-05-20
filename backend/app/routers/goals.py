@@ -17,7 +17,15 @@ class PeriodTypePath(str, Enum):
     monthly = "monthly"
 
 
-@router.get("", response_model=list[GoalOut])
+@router.get(
+    "",
+    response_model=list[GoalOut],
+    summary="目標一覧取得（週次・月次）",
+    description="ログインユーザーが設定した週次・月次の目標一覧を返します（F-07）。",
+    responses={
+        401: {"description": "未認証"},
+    },
+)
 def list_goals(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -25,7 +33,15 @@ def list_goals(
     return GoalService(db).list_goals(current_user.id)
 
 
-@router.put("", response_model=GoalOut)
+@router.put(
+    "",
+    response_model=GoalOut,
+    summary="目標を設定（upsert）",
+    description="期間種別・指標・目標値で目標を設定します。既存の目標がある場合は上書き（upsert）します（F-07）。",
+    responses={
+        401: {"description": "未認証"},
+    },
+)
 def set_goal(
     payload: GoalIn,
     db: Session = Depends(get_db),
@@ -35,7 +51,14 @@ def set_goal(
 
 
 @router.delete(
-    "/{period_type}", status_code=status.HTTP_204_NO_CONTENT
+    "/{period_type}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="目標を削除",
+    description="指定した期間種別（weekly / monthly）の目標を削除します（F-07）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "指定した期間の目標が設定されていない"},
+    },
 )
 def delete_goal(
     period_type: PeriodTypePath,
@@ -51,11 +74,18 @@ def delete_goal(
 
 
 @router.get(
-    "/{period_type}/trend", response_model=list[AchievementPointOut]
+    "/{period_type}/trend",
+    response_model=list[AchievementPointOut],
+    summary="目標達成率の推移データ取得",
+    description="指定した期間種別の過去N期間分（デフォルト8）の達成率推移を返します。グラフ表示に使用します（F-07）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "指定した期間の目標が設定されていない"},
+    },
 )
 def goal_trend(
     period_type: PeriodTypePath,
-    count: int = Query(8, ge=1, le=24),
+    count: int = Query(8, ge=1, le=24, description="取得する期間数（1〜24、デフォルト8）"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

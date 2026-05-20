@@ -1,0 +1,2161 @@
+openapi: 3.1.0
+info:
+  title: FitLog API
+  description: '
+
+    FitLog は筋トレ・運動記録サービスの REST API です。
+
+
+    ## 認証
+
+    保護エンドポイントは Bearer トークン（JWT）を要求します。
+
+    `/auth/login` で取得したトークンを `Authorization: Bearer <token>` ヘッダに付与してください。
+
+
+    ## 共通エラーレスポンス
+
+    | ステータス | 意味 |
+
+    |---|---|
+
+    | 401 | 未認証（トークン不正・期限切れ） |
+
+    | 403 | 権限なし（他ユーザーのリソースへのアクセス等） |
+
+    | 404 | リソースが見つからない |
+
+    | 409 | 重複登録（メール・ユーザー名等） |
+
+    | 422 | バリデーションエラー |
+
+    '
+  version: 0.1.0
+paths:
+  /auth/register:
+    post:
+      tags:
+      - auth
+      summary: 新規ユーザー登録
+      description: ユーザー名・メールアドレス・パスワードで新規アカウントを作成します。パスワードは8文字以上で英字と数字を含む必要があります。
+      operationId: register_auth_register_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOut'
+        '409':
+          description: メールアドレスまたはユーザー名が既に使用済み
+        '422':
+          description: バリデーションエラー（パスワード強度不足など）
+  /auth/login:
+    post:
+      tags:
+      - auth
+      summary: ログイン（JWTトークン取得）
+      description: 'メールアドレスとパスワードで認証し、JWT アクセストークンを返します。以降のリクエストは `Authorization:
+        Bearer <token>` ヘッダを付与してください。'
+      operationId: login_auth_login_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: メールアドレスまたはパスワードが無効
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /auth/logout:
+    post:
+      tags:
+      - auth
+      summary: ログアウト
+      description: JWT はステートレスのため、クライアント側でトークンを破棄します。サーバー側での処理はありません。
+      operationId: logout_auth_logout_post
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Logout Auth Logout Post
+  /auth/me:
+    get:
+      tags:
+      - auth
+      summary: ログイン中ユーザーの情報取得
+      description: Bearer トークンに紐づくログイン中ユーザーの情報を返します。
+      operationId: me_auth_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOut'
+        '401':
+          description: 未認証（トークン不正または期限切れ）
+      security:
+      - OAuth2PasswordBearer: []
+  /exercises:
+    get:
+      tags:
+      - exercises
+      summary: 種目一覧取得（共通 + 自作）
+      description: 共通種目と、ログインユーザーが作成したカスタム種目の一覧を返します。
+      operationId: list_exercises_exercises_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/ExerciseOut'
+                type: array
+                title: Response List Exercises Exercises Get
+        '401':
+          description: 未認証
+      security:
+      - OAuth2PasswordBearer: []
+    post:
+      tags:
+      - exercises
+      summary: カスタム種目を作成
+      description: ログインユーザー専用のカスタム種目を新規作成します。同名の種目が既に存在する場合は 409 を返します。
+      operationId: create_exercise_exercises_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExerciseCreate'
+        required: true
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExerciseOut'
+        '401':
+          description: 未認証
+        '409':
+          description: 同名の種目が既に存在する
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+  /workouts:
+    post:
+      tags:
+      - workouts
+      summary: ワークアウット記録を作成
+      description: 実施日・種目×セット構成・メモを指定してワークアウット記録を新規作成します。自己ベスト（PR）が更新された場合は `pr_updates`
+        に指標が返ります（F-09）。
+      operationId: create_workout_workouts_post
+      security:
+      - OAuth2PasswordBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutDetail'
+        '401':
+          description: 未認証
+        '422':
+          description: 指定した種目IDにアクセス権限がない
+    get:
+      tags:
+      - workouts
+      summary: 自分のワークアウット一覧取得
+      description: ログインユーザー自身のワークアウット記録を実施日降順で返します（F-03）。`limit` / `offset` でページネーション可能です。
+      operationId: list_workouts_workouts_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 取得件数上限（1〜100、デフォルト20）
+          default: 20
+          title: Limit
+        description: 取得件数上限（1〜100、デフォルト20）
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: 取得オフセット（デフォルト0）
+          default: 0
+          title: Offset
+        description: 取得オフセット（デフォルト0）
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkoutSummary'
+                title: Response List Workouts Workouts Get
+        '401':
+          description: 未認証
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workouts/{workout_id}:
+    get:
+      tags:
+      - workouts
+      summary: ワークアウット詳細取得
+      description: 指定した ID のワークアウット記録の詳細（全セット・ボリューム・ナイストレ数・アドバイス数）を返します。
+      operationId: get_workout_workouts__workout_id__get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutDetail'
+        '401':
+          description: 未認証
+        '403':
+          description: 他ユーザーのワークアウットへのアクセス
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    patch:
+      tags:
+      - workouts
+      summary: ワークアウット記録を更新（全置換）
+      description: 実施日・種目構成・メモ・写真URLをまとめて差し替えます。部分更新は非対応です。
+      operationId: update_workout_workouts__workout_id__patch
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkoutUpdate'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutDetail'
+        '401':
+          description: 未認証
+        '403':
+          description: 他ユーザーのワークアウットへの操作
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: 指定した種目IDにアクセス権限がない
+    delete:
+      tags:
+      - workouts
+      summary: ワークアウット記録を削除
+      description: 指定した ID のワークアウット記録（関連セット・写真含む）を完全に削除します。
+      operationId: delete_workout_workouts__workout_id__delete
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: 未認証
+        '403':
+          description: 他ユーザーのワークアウットへの操作
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workouts/{workout_id}/photo:
+    put:
+      tags:
+      - photos
+      summary: ワークアウットに写真をアップロード
+      description: JPEG / PNG / GIF のいずれか、最大5MB のファイルをワークアウットに紐づけます。既存写真がある場合は上書きされます（F-10）。
+      operationId: upload_photo_workouts__workout_id__photo_put
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_photo_workouts__workout_id__photo_put'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutDetail'
+        '401':
+          description: 未認証
+        '403':
+          description: 他ユーザーのワークアウットへの操作
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: ファイル形式が不正またはサイズ超過（5MB 以上）
+    delete:
+      tags:
+      - photos
+      summary: ワークアウットの写真を削除
+      description: ワークアウットに紐づく写真を削除します。ストレージ上のファイルも合わせて削除されます（F-10）。
+      operationId: delete_photo_workouts__workout_id__photo_delete
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkoutDetail'
+        '401':
+          description: 未認証
+        '403':
+          description: 他ユーザーのワークアウットへの操作
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workouts/{workout_id}/cheers:
+    post:
+      tags:
+      - cheers
+      summary: ナイストレを付与
+      description: 指定ワークアウットにナイストレ（いいね）を付与します。自分のワークアウットには付与できません（F-04）。
+      operationId: add_cheer_workouts__workout_id__cheers_post
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CheerStateOut'
+        '401':
+          description: 未認証
+        '403':
+          description: 自分のワークアウットへのナイストレは不可
+        '404':
+          description: ワークアウットが見つからない
+        '409':
+          description: 既にナイストレ済み
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    delete:
+      tags:
+      - cheers
+      summary: ナイストレを解除
+      description: 指定ワークアウットに付与済みのナイストレを解除します（F-04）。
+      operationId: remove_cheer_workouts__workout_id__cheers_delete
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: 未認証
+        '403':
+          description: 自分のワークアウットへの操作は不可
+        '404':
+          description: ワークアウットが見つからない、またはナイストレしていない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /workouts/{workout_id}/advices:
+    post:
+      tags:
+      - advices
+      summary: アドバイスを投稿
+      description: 指定ワークアウットにアドバイスコメントを投稿します。自分のワークアウットへは投稿できません（F-05）。
+      operationId: create_advice_workouts__workout_id__advices_post
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdviceCreate'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdviceOut'
+        '401':
+          description: 未認証
+        '403':
+          description: 自分のワークアウットへのアドバイスは不可
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+    get:
+      tags:
+      - advices
+      summary: ワークアウットのアドバイス一覧取得
+      description: 指定ワークアウットに投稿されたアドバイスを投稿日時昇順で返します（F-05）。
+      operationId: list_advices_workouts__workout_id__advices_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: workout_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Workout Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AdviceOut'
+                title: Response List Advices Workouts  Workout Id  Advices Get
+        '401':
+          description: 未認証
+        '404':
+          description: ワークアウットが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /advices/{advice_id}:
+    delete:
+      tags:
+      - advices
+      summary: アドバイスを削除（投稿者のみ可）
+      description: 自分が投稿したアドバイスを削除します。他ユーザーのアドバイスは削除できません（F-05）。
+      operationId: delete_advice_advices__advice_id__delete
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: advice_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: Advice Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: 未認証
+        '403':
+          description: 他ユーザーのアドバイスへの操作は不可
+        '404':
+          description: アドバイスが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/search:
+    get:
+      tags:
+      - users
+      summary: ユーザー名でユーザーを検索
+      description: クエリ文字列 `q` に部分一致するユーザー名を持つユーザーを返します（F-06）。
+      operationId: search_users_users_search_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: q
+        in: query
+        required: true
+        schema:
+          type: string
+          minLength: 1
+          description: 検索キーワード（1文字以上）
+          title: Q
+        description: 検索キーワード（1文字以上）
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserBrief'
+                title: Response Search Users Users Search Get
+        '401':
+          description: 未認証
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}:
+    get:
+      tags:
+      - users
+      summary: ユーザープロフィール取得
+      description: 指定ユーザーのプロフィール情報（フォロー数・フォロワー数・フォロー関係）を返します（F-06）。
+      operationId: get_profile_users__user_id__get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileOut'
+        '401':
+          description: 未認証
+        '404':
+          description: ユーザーが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}/following:
+    get:
+      tags:
+      - users
+      summary: フォロー中ユーザー一覧取得
+      description: 指定ユーザーがフォローしているユーザーの一覧を返します（F-06）。
+      operationId: list_following_users__user_id__following_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserBrief'
+                title: Response List Following Users  User Id  Following Get
+        '401':
+          description: 未認証
+        '404':
+          description: ユーザーが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}/followers:
+    get:
+      tags:
+      - users
+      summary: フォロワー一覧取得
+      description: 指定ユーザーをフォローしているユーザーの一覧を返します（F-06）。
+      operationId: list_followers_users__user_id__followers_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserBrief'
+                title: Response List Followers Users  User Id  Followers Get
+        '401':
+          description: 未認証
+        '404':
+          description: ユーザーが見つからない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /users/{user_id}/follow:
+    post:
+      tags:
+      - users
+      summary: ユーザーをフォロー
+      description: 指定ユーザーをフォローします。自分自身はフォローできません（F-06）。
+      operationId: follow_user_users__user_id__follow_post
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FollowStateOut'
+        '401':
+          description: 未認証
+        '404':
+          description: ユーザーが見つからない
+        '409':
+          description: 既にフォロー済み
+        '422':
+          description: 自分自身はフォロー不可
+    delete:
+      tags:
+      - users
+      summary: フォローを解除
+      description: 指定ユーザーのフォローを解除します（F-06）。
+      operationId: unfollow_user_users__user_id__follow_delete
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          title: User Id
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: 未認証
+        '404':
+          description: ユーザーが見つからない、またはフォローしていない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /feed:
+    get:
+      tags:
+      - feed
+      summary: フォロー中ユーザーのワークアウットフィード取得
+      description: フォロー中のユーザーが投稿したワークアウットを実施日降順で返します。`limit` / `offset` でページネーション可能です（F-06）。
+      operationId: get_feed_feed_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: 取得件数上限（1〜100、デフォルト20）
+          default: 20
+          title: Limit
+        description: 取得件数上限（1〜100、デフォルト20）
+      - name: offset
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 0
+          description: 取得オフセット（デフォルト0）
+          default: 0
+          title: Offset
+        description: 取得オフセット（デフォルト0）
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/WorkoutSummary'
+                title: Response Get Feed Feed Get
+        '401':
+          description: 未認証
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /goals:
+    get:
+      tags:
+      - goals
+      summary: 目標一覧取得（週次・月次）
+      description: ログインユーザーが設定した週次・月次の目標一覧を返します（F-07）。
+      operationId: list_goals_goals_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/GoalOut'
+                type: array
+                title: Response List Goals Goals Get
+        '401':
+          description: 未認証
+      security:
+      - OAuth2PasswordBearer: []
+    put:
+      tags:
+      - goals
+      summary: 目標を設定（upsert）
+      description: 期間種別・指標・目標値で目標を設定します。既存の目標がある場合は上書き（upsert）します（F-07）。
+      operationId: set_goal_goals_put
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoalIn'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GoalOut'
+        '401':
+          description: 未認証
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - OAuth2PasswordBearer: []
+  /goals/{period_type}:
+    delete:
+      tags:
+      - goals
+      summary: 目標を削除
+      description: 指定した期間種別（weekly / monthly）の目標を削除します（F-07）。
+      operationId: delete_goal_goals__period_type__delete
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: period_type
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PeriodTypePath'
+      responses:
+        '204':
+          description: Successful Response
+        '401':
+          description: 未認証
+        '404':
+          description: 指定した期間の目標が設定されていない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /goals/{period_type}/trend:
+    get:
+      tags:
+      - goals
+      summary: 目標達成率の推移データ取得
+      description: 指定した期間種別の過去N期間分（デフォルト8）の達成率推移を返します。グラフ表示に使用します（F-07）。
+      operationId: goal_trend_goals__period_type__trend_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: period_type
+        in: path
+        required: true
+        schema:
+          $ref: '#/components/schemas/PeriodTypePath'
+      - name: count
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 24
+          minimum: 1
+          description: 取得する期間数（1〜24、デフォルト8）
+          default: 8
+          title: Count
+        description: 取得する期間数（1〜24、デフォルト8）
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AchievementPointOut'
+                title: Response Goal Trend Goals  Period Type  Trend Get
+        '401':
+          description: 未認証
+        '404':
+          description: 指定した期間の目標が設定されていない
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /dashboard/personal-records:
+    get:
+      tags:
+      - dashboard
+      summary: 種目別の自己ベスト一覧取得
+      description: ログインユーザーの種目別自己ベスト（最大重量・ベストボリューム・推定1RM）を返します（F-09）。
+      operationId: personal_records_dashboard_personal_records_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/PersonalRecordOut'
+                type: array
+                title: Response Personal Records Dashboard Personal Records Get
+        '401':
+          description: 未認証
+      security:
+      - OAuth2PasswordBearer: []
+  /dashboard/achievements:
+    get:
+      tags:
+      - dashboard
+      summary: 現在期間の目標達成率取得
+      description: 今週・今月の目標達成率（実績値・達成率・達成済みフラグ）を返します（F-07）。
+      operationId: achievements_dashboard_achievements_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: '#/components/schemas/AchievementOut'
+                type: array
+                title: Response Achievements Dashboard Achievements Get
+        '401':
+          description: 未認証
+      security:
+      - OAuth2PasswordBearer: []
+  /dashboard/streak:
+    get:
+      tags:
+      - dashboard
+      summary: 連続記録日数（現在・最長）取得
+      description: ログインユーザーの現在の連続記録日数と過去最長の連続記録日数を返します（F-08）。
+      operationId: streak_dashboard_streak_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StreakOut'
+        '401':
+          description: 未認証
+      security:
+      - OAuth2PasswordBearer: []
+  /dashboard/heatmap:
+    get:
+      tags:
+      - dashboard
+      summary: 日別ボリュームヒートマップデータ取得
+      description: 直近Nか月（デフォルト5）の日別ボリュームを返します。記録なし日も volume=0 で含まれます（F-08）。
+      operationId: heatmap_dashboard_heatmap_get
+      security:
+      - OAuth2PasswordBearer: []
+      parameters:
+      - name: months
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 12
+          minimum: 1
+          description: 取得する月数（1〜12、デフォルト5）
+          default: 5
+          title: Months
+        description: 取得する月数（1〜12、デフォルト5）
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/HeatmapCell'
+                title: Response Heatmap Dashboard Heatmap Get
+        '401':
+          description: 未認証
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /health:
+    get:
+      tags:
+      - health
+      summary: Health
+      operationId: health_health_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                additionalProperties:
+                  type: string
+                type: object
+                title: Response Health Health Get
+components:
+  schemas:
+    AchievementOut:
+      properties:
+        period_type:
+          type: string
+          enum:
+          - weekly
+          - monthly
+          title: Period Type
+          description: 期間種別
+        metric:
+          type: string
+          enum:
+          - sessions
+          - volume
+          title: Metric
+          description: 計測指標
+        target_value:
+          type: string
+          title: Target Value
+          description: 目標値
+        actual:
+          type: string
+          title: Actual
+          description: 現在の実績値
+        rate:
+          type: integer
+          title: Rate
+          description: 達成率（0〜100、超過は100に頭打ち）
+        achieved:
+          type: boolean
+          title: Achieved
+          description: 達成済みか（超過も達成扱い）
+        period_start:
+          type: string
+          format: date
+          title: Period Start
+          description: 期間開始日（含む）
+        period_end:
+          type: string
+          format: date
+          title: Period End
+          description: 期間終了日（排他、次期間の開始日）
+      type: object
+      required:
+      - period_type
+      - metric
+      - target_value
+      - actual
+      - rate
+      - achieved
+      - period_start
+      - period_end
+      title: AchievementOut
+      description: 現在期間（今週/今月）の達成状況。
+    AchievementPointOut:
+      properties:
+        period_start:
+          type: string
+          format: date
+          title: Period Start
+          description: 期間開始日
+        actual:
+          type: string
+          title: Actual
+          description: 実績値
+        target_value:
+          type: string
+          title: Target Value
+          description: 目標値
+        rate:
+          type: integer
+          title: Rate
+          description: 達成率（0〜100）
+        achieved:
+          type: boolean
+          title: Achieved
+          description: 達成済みか
+      type: object
+      required:
+      - period_start
+      - actual
+      - target_value
+      - rate
+      - achieved
+      title: AchievementPointOut
+      description: 達成率推移グラフの1点（期間バケット）。
+    AdviceCreate:
+      properties:
+        content:
+          type: string
+          maxLength: 140
+          minLength: 1
+          title: Content
+          description: アドバイス本文（1〜140文字）
+          examples:
+          - フォームが綺麗でした！
+      type: object
+      required:
+      - content
+      title: AdviceCreate
+      description: 投稿入力。本文は必須・最大140文字（DBは LENGTH>=1 のみ、上限はここで担保）。
+    AdviceOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: アドバイスID
+        workout_id:
+          type: integer
+          title: Workout Id
+          description: 対象ワークアウトID
+        user_id:
+          type: integer
+          title: User Id
+          description: 投稿者ユーザーID
+        username:
+          type: string
+          title: Username
+          description: 投稿者ユーザー名
+        content:
+          type: string
+          title: Content
+          description: アドバイス本文
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: 投稿日時（UTC）
+      type: object
+      required:
+      - id
+      - workout_id
+      - user_id
+      - username
+      - content
+      - created_at
+      title: AdviceOut
+      description: '一覧/詳細用。投稿者名・本文・日時を含む（要件: 昇順表示）。'
+      example:
+        content: フォームが綺麗でした！
+        created_at: '2026-05-18T12:00:00'
+        id: 1
+        user_id: 2
+        username: bob
+        workout_id: 10
+    Body_upload_photo_workouts__workout_id__photo_put:
+      properties:
+        file:
+          type: string
+          format: binary
+          title: File
+      type: object
+      required:
+      - file
+      title: Body_upload_photo_workouts__workout_id__photo_put
+    CheerStateOut:
+      properties:
+        cheers_count:
+          type: integer
+          title: Cheers Count
+          description: 現在のナイストレ総数
+        cheered_by_me:
+          type: boolean
+          title: Cheered By Me
+          description: ログインユーザーが付与済みか
+      type: object
+      required:
+      - cheers_count
+      - cheered_by_me
+      title: CheerStateOut
+      description: 付与/解除後の最新状態（件数 + 自分が付与済みか）。
+    ExerciseBlockInput:
+      properties:
+        exercise_id:
+          type: integer
+          title: Exercise Id
+          description: 種目ID
+        sets:
+          items:
+            $ref: '#/components/schemas/SetInput'
+          type: array
+          title: Sets
+          description: セット一覧（1セット以上必要）
+      type: object
+      required:
+      - exercise_id
+      - sets
+      title: ExerciseBlockInput
+    ExerciseCreate:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: 種目名（1〜100文字）
+          examples:
+          - ベンチプレス
+        category:
+          type: string
+          title: Category
+          description: 'カテゴリ（例: chest, back, legs, shoulders, arms, core）'
+          examples:
+          - chest
+      type: object
+      required:
+      - name
+      - category
+      title: ExerciseCreate
+    ExerciseOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: 種目ID
+        name:
+          type: string
+          title: Name
+          description: 種目名
+        category:
+          type: string
+          title: Category
+          description: カテゴリ
+        created_by:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Created By
+          description: 作成ユーザーID（共通種目は null）
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: 作成日時（UTC）
+      type: object
+      required:
+      - id
+      - name
+      - category
+      - created_at
+      title: ExerciseOut
+      example:
+        category: chest
+        created_at: '2026-01-01T00:00:00'
+        id: 1
+        name: ベンチプレス
+    FollowStateOut:
+      properties:
+        is_following:
+          type: boolean
+          title: Is Following
+          description: フォロー中か
+        followers_count:
+          type: integer
+          title: Followers Count
+          description: 対象ユーザーのフォロワー数（操作後の最新値）
+      type: object
+      required:
+      - is_following
+      - followers_count
+      title: FollowStateOut
+      description: フォロー/解除後の最新状態（対象ユーザー視点）。
+    GoalIn:
+      properties:
+        period_type:
+          type: string
+          enum:
+          - weekly
+          - monthly
+          title: Period Type
+          description: 期間種別（weekly / monthly）
+          examples:
+          - weekly
+        metric:
+          type: string
+          enum:
+          - sessions
+          - volume
+          title: Metric
+          description: 計測指標（sessions=回数 / volume=総ボリュームkg）
+          examples:
+          - sessions
+        target_value:
+          anyOf:
+          - type: number
+            exclusiveMinimum: 0.0
+          - type: string
+          title: Target Value
+          description: 目標値（0より大きい数値）
+          examples:
+          - 3
+      type: object
+      required:
+      - period_type
+      - metric
+      - target_value
+      title: GoalIn
+      description: 目標設定入力。period_type/metric は固定語彙、target_value は正の数。
+    GoalOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: 目標ID
+        period_type:
+          type: string
+          enum:
+          - weekly
+          - monthly
+          title: Period Type
+          description: 期間種別
+        metric:
+          type: string
+          enum:
+          - sessions
+          - volume
+          title: Metric
+          description: 計測指標
+        target_value:
+          type: string
+          title: Target Value
+          description: 目標値
+        start_on:
+          type: string
+          format: date
+          title: Start On
+          description: 目標開始日
+      type: object
+      required:
+      - id
+      - period_type
+      - metric
+      - target_value
+      - start_on
+      title: GoalOut
+      example:
+        id: 1
+        metric: sessions
+        period_type: weekly
+        start_on: '2026-05-18'
+        target_value: '3'
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    HeatmapCell:
+      properties:
+        date:
+          type: string
+          format: date
+          title: Date
+          description: 日付（YYYY-MM-DD）
+        volume:
+          type: string
+          title: Volume
+          description: その日の総ボリューム（kg × reps の合計、記録なし=0）
+      type: object
+      required:
+      - date
+      - volume
+      title: HeatmapCell
+      description: F-08 ヒートマップの1日。記録なし日も volume=0 で出力。
+    LoginRequest:
+      properties:
+        email:
+          type: string
+          format: email
+          title: Email
+          description: 登録済みメールアドレス
+          examples:
+          - alice@example.com
+        password:
+          type: string
+          title: Password
+          description: パスワード
+          examples:
+          - pass1234
+      type: object
+      required:
+      - email
+      - password
+      title: LoginRequest
+    PeriodTypePath:
+      type: string
+      enum:
+      - weekly
+      - monthly
+      title: PeriodTypePath
+    PersonalRecordOut:
+      properties:
+        exercise_id:
+          type: integer
+          title: Exercise Id
+          description: 種目ID
+        exercise_name:
+          type: string
+          title: Exercise Name
+          description: 種目名
+        max_weight_kg:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Max Weight Kg
+          description: 最大重量（kg）
+        max_weight_reps:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Max Weight Reps
+          description: 最大重量時のレップ数
+        max_weight_on:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Max Weight On
+          description: 最大重量を達成した日
+        best_volume:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Best Volume
+          description: 1日の最大総ボリューム（kg × reps）
+        best_volume_on:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Best Volume On
+          description: ベストボリュームを達成した日
+        best_est_1rm:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Best Est 1Rm
+          description: 推定1RM最大値（kg）
+        best_1rm_weight_kg:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Best 1Rm Weight Kg
+          description: 推定1RM算出時の重量（kg）
+        best_1rm_reps:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Best 1Rm Reps
+          description: 推定1RM算出時のレップ数
+        best_1rm_on:
+          anyOf:
+          - type: string
+            format: date
+          - type: 'null'
+          title: Best 1Rm On
+          description: 推定1RMベストを達成した日
+      type: object
+      required:
+      - exercise_id
+      - exercise_name
+      - max_weight_kg
+      - max_weight_reps
+      - max_weight_on
+      - best_volume
+      - best_volume_on
+      - best_est_1rm
+      - best_1rm_weight_kg
+      - best_1rm_reps
+      - best_1rm_on
+      title: PersonalRecordOut
+      description: 種目別の自己ベスト（F-09 ダッシュボード併記表示）。
+    PrUpdateOut:
+      properties:
+        exercise_id:
+          type: integer
+          title: Exercise Id
+          description: 自己ベストが更新された種目ID
+        metrics:
+          items:
+            type: string
+          type: array
+          title: Metrics
+          description: 更新された指標（max_weight / best_volume / best_est_1rm）
+      type: object
+      required:
+      - exercise_id
+      - metrics
+      title: PrUpdateOut
+      description: 'F-09: この保存で更新された自己ベスト指標。'
+    ProfileOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ユーザーID
+        username:
+          type: string
+          title: Username
+          description: ユーザー名
+        profile_image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Profile Image Url
+          description: プロフィール画像URL
+        bio:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bio
+          description: 自己紹介文
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: アカウント作成日時（UTC）
+        following_count:
+          type: integer
+          title: Following Count
+          description: フォロー中のユーザー数
+        followers_count:
+          type: integer
+          title: Followers Count
+          description: フォロワー数
+        is_following:
+          type: boolean
+          title: Is Following
+          description: 閲覧ユーザーがこのユーザーをフォロー済みか
+        is_me:
+          type: boolean
+          title: Is Me
+          description: 閲覧ユーザー自身か
+      type: object
+      required:
+      - id
+      - username
+      - created_at
+      - following_count
+      - followers_count
+      - is_following
+      - is_me
+      title: ProfileOut
+      description: 'SC-10 プロフィール: ユーザー情報 + フォロー関係の集計。'
+      example:
+        bio: 毎日ランニング
+        created_at: '2026-01-01T00:00:00'
+        followers_count: 5
+        following_count: 10
+        id: 2
+        is_following: true
+        is_me: false
+        username: bob
+    RegisterRequest:
+      properties:
+        username:
+          type: string
+          title: Username
+          description: ユーザー名（1〜50文字）
+          examples:
+          - alice
+        email:
+          type: string
+          format: email
+          title: Email
+          description: メールアドレス
+          examples:
+          - alice@example.com
+        password:
+          type: string
+          title: Password
+          description: パスワード（8文字以上、英字+数字を含む）
+          examples:
+          - pass1234
+      type: object
+      required:
+      - username
+      - email
+      - password
+      title: RegisterRequest
+    SetInput:
+      properties:
+        weight_kg:
+          anyOf:
+          - type: number
+            minimum: 0.0
+          - type: string
+          title: Weight Kg
+          description: 重量（kg、0以上）
+          examples:
+          - 60.0
+        reps:
+          type: integer
+          minimum: 1.0
+          title: Reps
+          description: レップ数（1以上）
+          examples:
+          - 10
+      type: object
+      required:
+      - weight_kg
+      - reps
+      title: SetInput
+    StreakOut:
+      properties:
+        current:
+          type: integer
+          title: Current
+          description: 現在の連続記録日数
+        longest:
+          type: integer
+          title: Longest
+          description: 過去最長の連続記録日数
+      type: object
+      required:
+      - current
+      - longest
+      title: StreakOut
+      description: F-08 ストリーク（現在の連続記録日数・最長）。
+    TokenResponse:
+      properties:
+        access_token:
+          type: string
+          title: Access Token
+          description: JWT アクセストークン
+        token_type:
+          type: string
+          title: Token Type
+          description: トークンタイプ（常に bearer）
+          default: bearer
+      type: object
+      required:
+      - access_token
+      title: TokenResponse
+    UserBrief:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ユーザーID
+        username:
+          type: string
+          title: Username
+          description: ユーザー名
+        profile_image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Profile Image Url
+          description: プロフィール画像URL
+        bio:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bio
+          description: 自己紹介文
+        is_following:
+          type: boolean
+          title: Is Following
+          description: 閲覧ユーザーがこのユーザーをフォロー済みか
+        is_me:
+          type: boolean
+          title: Is Me
+          description: 閲覧ユーザー自身か
+      type: object
+      required:
+      - id
+      - username
+      - is_following
+      - is_me
+      title: UserBrief
+      description: 検索結果・フォロー中/フォロワー一覧の1要素。
+      example:
+        bio: 毎日ランニング
+        id: 2
+        is_following: true
+        is_me: false
+        username: bob
+    UserOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ユーザーID
+        username:
+          type: string
+          title: Username
+          description: ユーザー名
+        email:
+          type: string
+          format: email
+          title: Email
+          description: メールアドレス
+        profile_image_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Profile Image Url
+          description: プロフィール画像URL
+        bio:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Bio
+          description: 自己紹介文
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: アカウント作成日時（UTC）
+      type: object
+      required:
+      - id
+      - username
+      - email
+      - created_at
+      title: UserOut
+      example:
+        bio: 筋トレ好き
+        created_at: '2026-01-01T00:00:00'
+        email: alice@example.com
+        id: 1
+        username: alice
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    WorkoutCreate:
+      properties:
+        performed_on:
+          type: string
+          format: date
+          title: Performed On
+          description: 実施日（YYYY-MM-DD）
+          examples:
+          - '2026-05-18'
+        exercises:
+          items:
+            $ref: '#/components/schemas/ExerciseBlockInput'
+          type: array
+          title: Exercises
+          description: 種目×セット一覧（1件以上必要）
+        memo:
+          anyOf:
+          - type: string
+            maxLength: 280
+          - type: 'null'
+          title: Memo
+          description: メモ（最大280文字）
+          examples:
+          - 調子良かった
+        photo_url:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Photo Url
+          description: 写真URL（photos エンドポイントで設定）
+      type: object
+      required:
+      - performed_on
+      - exercises
+      title: WorkoutCreate
+    WorkoutDetail:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ワークアウトID
+        user_id:
+          type: integer
+          title: User Id
+          description: 記録したユーザーID
+        performed_on:
+          type: string
+          format: date
+          title: Performed On
+          description: 実施日
+        memo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Memo
+          description: メモ
+        photo_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Photo Url
+          description: 写真URL
+        sets:
+          items:
+            $ref: '#/components/schemas/WorkoutSetOut'
+          type: array
+          title: Sets
+          description: 全セット一覧（フラット）
+        total_volume:
+          type: string
+          title: Total Volume
+          description: 総ボリューム（kg × reps の合計）
+        cheers_count:
+          type: integer
+          title: Cheers Count
+          description: ナイストレ数
+        advices_count:
+          type: integer
+          title: Advices Count
+          description: アドバイス数
+        cheered_by_me:
+          type: boolean
+          title: Cheered By Me
+          description: ログインユーザーがナイストレ済みか（F-04）
+          default: false
+        pr_updates:
+          items:
+            $ref: '#/components/schemas/PrUpdateOut'
+          type: array
+          title: Pr Updates
+          description: この保存で更新された自己ベスト一覧（F-09）
+          default: []
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: 作成日時（UTC）
+        updated_at:
+          type: string
+          format: date-time
+          title: Updated At
+          description: 最終更新日時（UTC）
+      type: object
+      required:
+      - id
+      - user_id
+      - performed_on
+      - memo
+      - photo_url
+      - sets
+      - total_volume
+      - cheers_count
+      - advices_count
+      - created_at
+      - updated_at
+      title: WorkoutDetail
+      description: 詳細用（F-03 詳細表示）。sets はフラット、種目別はクライアントで集約。
+      example:
+        advices_count: 0
+        cheered_by_me: false
+        cheers_count: 0
+        created_at: '2026-05-18T10:00:00'
+        id: 10
+        memo: 調子良かった
+        performed_on: '2026-05-18'
+        pr_updates: []
+        sets:
+        - exercise_id: 1
+          exercise_name: ベンチプレス
+          id: 1
+          is_pr: false
+          reps: 10
+          set_no: 1
+          weight_kg: '60.0'
+        total_volume: '600.00'
+        updated_at: '2026-05-18T10:00:00'
+        user_id: 1
+    WorkoutSetOut:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: セットID
+        exercise_id:
+          type: integer
+          title: Exercise Id
+          description: 種目ID
+        exercise_name:
+          type: string
+          title: Exercise Name
+          description: 種目名
+        set_no:
+          type: integer
+          title: Set No
+          description: セット番号（種目内の連番）
+        weight_kg:
+          type: string
+          title: Weight Kg
+          description: 重量（kg）
+        reps:
+          type: integer
+          title: Reps
+          description: レップ数
+        is_pr:
+          type: boolean
+          title: Is Pr
+          description: このセットで自己ベストを更新したか
+      type: object
+      required:
+      - id
+      - exercise_id
+      - exercise_name
+      - set_no
+      - weight_kg
+      - reps
+      - is_pr
+      title: WorkoutSetOut
+      description: フロント Workout.sets に対応するフラット表現。
+    WorkoutSummary:
+      properties:
+        id:
+          type: integer
+          title: Id
+          description: ワークアウトID
+        user_id:
+          type: integer
+          title: User Id
+          description: 記録したユーザーID
+        performed_on:
+          type: string
+          format: date
+          title: Performed On
+          description: 実施日
+        memo:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Memo
+          description: メモ
+        photo_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Photo Url
+          description: 写真URL
+        exercise_count:
+          type: integer
+          title: Exercise Count
+          description: 種目数
+        set_count:
+          type: integer
+          title: Set Count
+          description: 総セット数
+        total_volume:
+          type: string
+          title: Total Volume
+          description: 総ボリューム（kg × reps の合計）
+        cheers_count:
+          type: integer
+          title: Cheers Count
+          description: ナイストレ数
+        advices_count:
+          type: integer
+          title: Advices Count
+          description: アドバイス数
+        cheered_by_me:
+          type: boolean
+          title: Cheered By Me
+          description: ログインユーザーがナイストレ済みか（F-04）
+          default: false
+        created_at:
+          type: string
+          format: date-time
+          title: Created At
+          description: 作成日時（UTC）
+      type: object
+      required:
+      - id
+      - user_id
+      - performed_on
+      - memo
+      - photo_url
+      - exercise_count
+      - set_count
+      - total_volume
+      - cheers_count
+      - advices_count
+      - created_at
+      title: WorkoutSummary
+      description: 一覧用（F-03 一覧表示）。
+      example:
+        advices_count: 1
+        cheered_by_me: false
+        cheers_count: 2
+        created_at: '2026-05-18T10:00:00'
+        exercise_count: 3
+        id: 10
+        memo: 調子良かった
+        performed_on: '2026-05-18'
+        set_count: 9
+        total_volume: '4500.00'
+        user_id: 1
+    WorkoutUpdate:
+      properties:
+        performed_on:
+          type: string
+          format: date
+          title: Performed On
+          description: 実施日（YYYY-MM-DD）
+          examples:
+          - '2026-05-18'
+        exercises:
+          items:
+            $ref: '#/components/schemas/ExerciseBlockInput'
+          type: array
+          title: Exercises
+          description: 種目×セット一覧（1件以上必要）
+        memo:
+          anyOf:
+          - type: string
+            maxLength: 280
+          - type: 'null'
+          title: Memo
+          description: メモ（最大280文字）
+          examples:
+          - 調子良かった
+        photo_url:
+          anyOf:
+          - type: string
+            maxLength: 1000
+          - type: 'null'
+          title: Photo Url
+          description: 写真URL（photos エンドポイントで設定）
+      type: object
+      required:
+      - performed_on
+      - exercises
+      title: WorkoutUpdate
+      description: 編集は全置換（実施日・種目構成・メモ・写真をまとめて差し替え）。
+  securitySchemes:
+    OAuth2PasswordBearer:
+      type: oauth2
+      flows:
+        password:
+          scopes: {}
+          tokenUrl: /auth/login
+tags:
+- name: auth
+  description: ユーザー登録・ログイン・ログアウト・プロフィール取得（F-01）
+- name: exercises
+  description: 種目マスタの一覧取得・カスタム種目作成
+- name: workouts
+  description: ワークアウト記録の作成・一覧・詳細・編集・削除（F-02/F-03）
+- name: photos
+  description: ワークアウト写真のアップロード・削除（F-10）
+- name: cheers
+  description: ナイストレ（いいね）の付与・解除（F-04）
+- name: advices
+  description: アドバイスコメントの投稿・一覧・削除（F-05）
+- name: users
+  description: ユーザー検索・プロフィール・フォロー操作（F-06）
+- name: feed
+  description: フォロー中ユーザーのワークアウト一覧（F-06）
+- name: goals
+  description: 目標の設定・一覧・削除・達成率推移（F-07）
+- name: dashboard
+  description: 自己ベスト・達成率・ストリーク・ヒートマップ（F-07/F-08/F-09）
+- name: health
+  description: サーバー稼働確認
