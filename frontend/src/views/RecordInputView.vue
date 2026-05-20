@@ -161,10 +161,6 @@ async function save() {
 
       <label>メモ（任意）</label>
       <input v-model="memo" placeholder="調子・気づきなど" />
-      <label>写真（任意）</label>
-      <input type="file" disabled />
-      <div class="muted">※ 写真は後続スライスで接続します</div>
-
       <p v-if="error" class="muted" style="color:#e66; margin-top:10px">
         {{ error }}
       </p>

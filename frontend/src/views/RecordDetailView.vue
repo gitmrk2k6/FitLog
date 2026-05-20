@@ -11,7 +11,13 @@ import {
   removeCheer,
   type Advice,
 } from '../api/social'
-import { deleteWorkout, getWorkout, type WorkoutDetail } from '../api/workouts'
+import {
+  deletePhoto,
+  deleteWorkout,
+  getWorkout,
+  uploadPhoto,
+  type WorkoutDetail,
+} from '../api/workouts'
 import { auth } from '../stores/auth'
 
 const route = useRoute()
@@ -27,6 +33,7 @@ const cheersCount = ref(0)
 const cheerBusy = ref(false)
 const advices = ref<Advice[]>([])
 const newAdvice = ref('')
+const photoBusy = ref(false)
 
 const isOwn = computed(
   () => workout.value?.userId === auth.currentUser.value?.id,
@@ -106,6 +113,34 @@ async function postAdvice() {
   }
 }
 
+async function handlePhotoUpload(e: Event) {
+  const file = (e.target as HTMLInputElement).files?.[0]
+  if (!file || !workout.value) return
+  photoBusy.value = true
+  error.value = ''
+  try {
+    workout.value = await uploadPhoto(workout.value.id, file)
+  } catch (err) {
+    error.value = err instanceof ApiError ? err.message : 'アップロードに失敗しました'
+  } finally {
+    photoBusy.value = false
+    ;(e.target as HTMLInputElement).value = ''
+  }
+}
+
+async function handlePhotoDelete() {
+  if (!workout.value || !confirm('写真を削除しますか？')) return
+  photoBusy.value = true
+  error.value = ''
+  try {
+    workout.value = await deletePhoto(workout.value.id)
+  } catch (err) {
+    error.value = err instanceof ApiError ? err.message : '削除に失敗しました'
+  } finally {
+    photoBusy.value = false
+  }
+}
+
 async function removeAdvice(a: Advice) {
   try {
     await deleteAdvice(a.id)
@@ -146,6 +181,37 @@ async function removeAdvice(a: Advice) {
       <div v-if="workout.memo" class="muted">メモ: {{ workout.memo }}</div>
       <div class="muted">
         総ボリューム: {{ workout.totalVolume.toLocaleString() }} kg
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>写真</h2>
+      <img
+        v-if="workout.photoUrl"
+        :src="workout.photoUrl"
+        alt="トレーニング写真"
+        style="width:100%; max-height:320px; object-fit:cover; border-radius:8px; margin-bottom:10px"
+      />
+      <p v-else class="muted">写真はありません。</p>
+      <div v-if="isOwn" class="row" style="margin-top:8px; flex-wrap:wrap; gap:8px">
+        <label class="btn small" :class="{ secondary: photoBusy }" style="cursor:pointer">
+          {{ photoBusy ? '処理中…' : workout.photoUrl ? '写真を変更' : '写真をアップロード' }}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/gif"
+            style="display:none"
+            :disabled="photoBusy"
+            @change="handlePhotoUpload"
+          />
+        </label>
+        <button
+          v-if="workout.photoUrl"
+          class="btn small secondary"
+          :disabled="photoBusy"
+          @click="handlePhotoDelete"
+        >
+          写真を削除
+        </button>
       </div>
     </div>
 
