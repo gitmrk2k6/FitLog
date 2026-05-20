@@ -39,7 +39,18 @@ def _handle(exc: Exception) -> HTTPException:
     raise exc
 
 
-@router.put("", response_model=WorkoutDetail)
+@router.put(
+    "",
+    response_model=WorkoutDetail,
+    summary="ワークアウットに写真をアップロード",
+    description="JPEG / PNG / GIF のいずれか、最大5MB のファイルをワークアウットに紐づけます。既存写真がある場合は上書きされます（F-10）。",
+    responses={
+        401: {"description": "未認証"},
+        403: {"description": "他ユーザーのワークアウットへの操作"},
+        404: {"description": "ワークアウットが見つからない"},
+        422: {"description": "ファイル形式が不正またはサイズ超過（5MB 以上）"},
+    },
+)
 async def upload_photo(
     workout_id: int,
     file: UploadFile = File(...),
@@ -66,7 +77,17 @@ async def upload_photo(
         raise _handle(exc) from exc
 
 
-@router.delete("", response_model=WorkoutDetail)
+@router.delete(
+    "",
+    response_model=WorkoutDetail,
+    summary="ワークアウットの写真を削除",
+    description="ワークアウットに紐づく写真を削除します。ストレージ上のファイルも合わせて削除されます（F-10）。",
+    responses={
+        401: {"description": "未認証"},
+        403: {"description": "他ユーザーのワークアウットへの操作"},
+        404: {"description": "ワークアウットが見つからない"},
+    },
+)
 def delete_photo(
     workout_id: int,
     db: Session = Depends(get_db),

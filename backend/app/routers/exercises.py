@@ -10,7 +10,15 @@ from app.services.exercise_service import DuplicateExerciseError, ExerciseServic
 router = APIRouter(prefix="/exercises", tags=["exercises"])
 
 
-@router.get("", response_model=list[ExerciseOut])
+@router.get(
+    "",
+    response_model=list[ExerciseOut],
+    summary="種目一覧取得（共通 + 自作）",
+    description="共通種目と、ログインユーザーが作成したカスタム種目の一覧を返します。",
+    responses={
+        401: {"description": "未認証"},
+    },
+)
 def list_exercises(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -19,7 +27,15 @@ def list_exercises(
 
 
 @router.post(
-    "", response_model=ExerciseOut, status_code=status.HTTP_201_CREATED
+    "",
+    response_model=ExerciseOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="カスタム種目を作成",
+    description="ログインユーザー専用のカスタム種目を新規作成します。同名の種目が既に存在する場合は 409 を返します。",
+    responses={
+        401: {"description": "未認証"},
+        409: {"description": "同名の種目が既に存在する"},
+    },
 )
 def create_exercise(
     payload: ExerciseCreate,

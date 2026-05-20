@@ -30,16 +30,33 @@ def _handle(exc: Exception) -> HTTPException:
     raise exc
 
 
-@router.get("/search", response_model=list[UserBrief])
+@router.get(
+    "/search",
+    response_model=list[UserBrief],
+    summary="ユーザー名でユーザーを検索",
+    description="クエリ文字列 `q` に部分一致するユーザー名を持つユーザーを返します（F-06）。",
+    responses={
+        401: {"description": "未認証"},
+    },
+)
 def search_users(
-    q: str = Query(min_length=1),
+    q: str = Query(min_length=1, description="検索キーワード（1文字以上）"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     return FollowService(db).search(current_user.id, q)
 
 
-@router.get("/{user_id}", response_model=ProfileOut)
+@router.get(
+    "/{user_id}",
+    response_model=ProfileOut,
+    summary="ユーザープロフィール取得",
+    description="指定ユーザーのプロフィール情報（フォロー数・フォロワー数・フォロー関係）を返します（F-06）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "ユーザーが見つからない"},
+    },
+)
 def get_profile(
     user_id: int,
     db: Session = Depends(get_db),
@@ -51,7 +68,16 @@ def get_profile(
         raise _handle(exc) from exc
 
 
-@router.get("/{user_id}/following", response_model=list[UserBrief])
+@router.get(
+    "/{user_id}/following",
+    response_model=list[UserBrief],
+    summary="フォロー中ユーザー一覧取得",
+    description="指定ユーザーがフォローしているユーザーの一覧を返します（F-06）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "ユーザーが見つからない"},
+    },
+)
 def list_following(
     user_id: int,
     db: Session = Depends(get_db),
@@ -63,7 +89,16 @@ def list_following(
         raise _handle(exc) from exc
 
 
-@router.get("/{user_id}/followers", response_model=list[UserBrief])
+@router.get(
+    "/{user_id}/followers",
+    response_model=list[UserBrief],
+    summary="フォロワー一覧取得",
+    description="指定ユーザーをフォローしているユーザーの一覧を返します（F-06）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "ユーザーが見つからない"},
+    },
+)
 def list_followers(
     user_id: int,
     db: Session = Depends(get_db),
@@ -79,6 +114,14 @@ def list_followers(
     "/{user_id}/follow",
     response_model=FollowStateOut,
     status_code=status.HTTP_201_CREATED,
+    summary="ユーザーをフォロー",
+    description="指定ユーザーをフォローします。自分自身はフォローできません（F-06）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "ユーザーが見つからない"},
+        409: {"description": "既にフォロー済み"},
+        422: {"description": "自分自身はフォロー不可"},
+    },
 )
 def follow_user(
     user_id: int,
@@ -96,7 +139,14 @@ def follow_user(
 
 
 @router.delete(
-    "/{user_id}/follow", status_code=status.HTTP_204_NO_CONTENT
+    "/{user_id}/follow",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="フォローを解除",
+    description="指定ユーザーのフォローを解除します（F-06）。",
+    responses={
+        401: {"description": "未認証"},
+        404: {"description": "ユーザーが見つからない、またはフォローしていない"},
+    },
 )
 def unfollow_user(
     user_id: int,
