@@ -24,7 +24,7 @@
 | ORM/DB アクセス | MyBatis（XMLマッパー） | **SQLAlchemy（＋必要に応じ生SQL）** | MyBatis の「SQLを明示」とは別アプローチの ORM を経験。集計の複雑クエリは SQLAlchemy Core / 生SQL で書き分け |
 | API ドキュメント | SpringDoc OpenAPI | **FastAPI 標準（OpenAPI/Swagger 自動生成）** | SpringDoc 相当を標準機能で代替できることを示す |
 | フロントエンド | Next.js 14 / React | **Vue 3（Composition API）+ Vite + TypeScript** | 教材の React/Next.js から別系統のフレームワークへ。ダッシュボード/グラフ中心のSPAと相性。Vite で高速開発 |
-| フォーム/型 | React Hook Form + Zod | **VeeValidate + Zod（または Valibot）** | Vue エコシステムでの型安全フォームバリデーション |
+| フォーム/型 | React Hook Form + Zod | **ネイティブHTML5バリデーション + TypeScript** | 入力項目が少なく外部ライブラリのオーバーヘッドが不要な規模のため、`<input required>`等のHTML5バリデーション＋バックエンドのエラーレスポンス表示で対応。型安全はTypeScriptとPydanticスキーマで担保 |
 | データDB | PostgreSQL 17 | **PostgreSQL（継続採用）** | 集計に強く意図的に流用。`date_trunc` / ウィンドウ関数 / `generate_series` が週月集計・ヒートマップ・ストリーク算出に直結。教材資産（RDS構成）も流用可 |
 | 認証 | Spring Security + JJWT | **JWT（python-jose / passlib[bcrypt]）** | 認証方式（JWT）の知見は流用しつつ実装言語を刷新 |
 | テスト | JUnit / Vitest | **pytest（バックエンド）/ Vitest（フロント）** | 機能実装と同時にテストを書く方針（教材では後追い一括だった反省） |
@@ -89,6 +89,7 @@ FitLog/
 | bcrypt | 4.1.3 |
 | email-validator | 2.2.0 |
 | python-multipart | 0.0.20 |
+| boto3 | 1.35.99 |
 | pytest (dev) | 8.3.4 |
 | httpx (dev) | 0.28.1 |
 

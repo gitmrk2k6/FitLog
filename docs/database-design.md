@@ -33,8 +33,10 @@ erDiagram
     WORKOUTS ||--o{ WORKOUT_SETS : "持つ"
     WORKOUTS ||--o{ CHEERS : "受ける"
     WORKOUTS ||--o{ ADVICES : "受ける"
+    WORKOUTS ||--o{ PERSONAL_RECORDS : "PR②ボリューム参照"
     EXERCISES ||--o{ WORKOUT_SETS : "種目として使われる"
     EXERCISES ||--o{ PERSONAL_RECORDS : "対象種目"
+    WORKOUT_SETS ||--o{ PERSONAL_RECORDS : "PR①③セット参照"
 
     USERS {
         bigint id PK "自動採番"
@@ -114,12 +116,15 @@ erDiagram
         bigint exercise_id FK "対象種目（exercises.id）"
         numeric max_weight_kg "①最大重量"
         int max_weight_reps "①達成時の回数"
+        bigint max_weight_set_id FK "①達成セット（workout_sets.id、SET NULL）"
         date max_weight_on "①達成日"
         numeric best_volume "②ベストボリューム"
+        bigint best_volume_workout_id FK "②達成記録（workouts.id、SET NULL）"
         date best_volume_on "②達成日"
         numeric best_est_1rm "③推定1RMベスト"
         numeric best_1rm_weight_kg "③元の重量"
         int best_1rm_reps "③元の回数"
+        bigint best_1rm_set_id FK "③達成セット（workout_sets.id、SET NULL）"
         date best_1rm_on "③達成日"
     }
 ```
@@ -216,13 +221,19 @@ erDiagram
 - goals(user_id, period_type): 同一ユーザー・同一期間種別の目標は1件
 - personal_records(user_id, exercise_id): 種目別の自己ベストは1行
 
-### 外部キー制約（ON DELETE CASCADE）
+### 外部キー制約
 
-- workouts.user_id → users.id
-- workout_sets.workout_id → workouts.id / workout_sets.exercise_id → exercises.id（種目は RESTRICT 検討）
-- cheers / advices.workout_id → workouts.id（記録削除で連動削除）
-- follows.follower_id / following_id → users.id
-- goals.user_id → users.id / personal_records.user_id → users.id
+- workouts.user_id → users.id（CASCADE）
+- workout_sets.workout_id → workouts.id（CASCADE）
+- workout_sets.exercise_id → exercises.id（RESTRICT: 使用中の種目は削除不可）
+- cheers.workout_id → workouts.id / advices.workout_id → workouts.id（CASCADE: 記録削除で連動削除）
+- follows.follower_id / following_id → users.id（CASCADE）
+- goals.user_id → users.id（CASCADE）
+- exercises.created_by → users.id（SET NULL: 追加者削除時は共通マスタ化）
+- personal_records.user_id → users.id（CASCADE）
+- personal_records.exercise_id → exercises.id（CASCADE）
+- personal_records.max_weight_set_id / best_1rm_set_id → workout_sets.id（SET NULL）
+- personal_records.best_volume_workout_id → workouts.id（SET NULL）
 
 ### CHECK 制約
 
