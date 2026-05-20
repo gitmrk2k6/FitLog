@@ -15,7 +15,7 @@ def _wk(ex_id, sets, on="2026-05-10"):
 
 
 def _create(client, h, *args, **kw):
-    return client.post("/workouts", headers=h, json=_wk(*args, **kw))
+    return client.post("/api/workouts", headers=h, json=_wk(*args, **kw))
 
 
 def test_first_workout_sets_all_three_prs(client, auth_headers, ex):
@@ -58,7 +58,7 @@ def test_zero_weight_excluded_from_pr(client, auth_headers, ex):
 
 def test_dashboard_personal_records(client, auth_headers, ex):
     _create(client, auth_headers, ex[0], [{"weight_kg": 70, "reps": 6}])
-    res = client.get("/dashboard/personal-records", headers=auth_headers)
+    res = client.get("/api/dashboard/personal-records", headers=auth_headers)
     assert res.status_code == 200
     data = res.json()
     assert len(data) == 1
@@ -71,7 +71,7 @@ def test_dashboard_personal_records(client, auth_headers, ex):
 
 
 def test_dashboard_requires_auth(client):
-    assert client.get("/dashboard/personal-records").status_code == 401
+    assert client.get("/api/dashboard/personal-records").status_code == 401
 
 
 def test_delete_recomputes_pr(client, auth_headers, ex):
@@ -82,9 +82,9 @@ def test_delete_recomputes_pr(client, auth_headers, ex):
         client, auth_headers, ex[0], [{"weight_kg": 100, "reps": 5}], "2026-05-12"
     )
     # 100kg の記録を削除 → 最大重量は 60 に戻るはず
-    assert client.delete(f"/workouts/{w1}", headers=auth_headers).status_code == 204
+    assert client.delete(f"/api/workouts/{w1}", headers=auth_headers).status_code == 204
     # w1(60kg) を消したので残るのは 100kg。max は 100
-    pr = client.get("/dashboard/personal-records", headers=auth_headers).json()[0]
+    pr = client.get("/api/dashboard/personal-records", headers=auth_headers).json()[0]
     assert float(pr["max_weight_kg"]) == 100.0
 
 
@@ -92,8 +92,8 @@ def test_delete_last_workout_clears_pr(client, auth_headers, ex):
     wid = _create(
         client, auth_headers, ex[0], [{"weight_kg": 60, "reps": 10}]
     ).json()["id"]
-    client.delete(f"/workouts/{wid}", headers=auth_headers)
-    assert client.get("/dashboard/personal-records", headers=auth_headers).json() == []
+    client.delete(f"/api/workouts/{wid}", headers=auth_headers)
+    assert client.get("/api/dashboard/personal-records", headers=auth_headers).json() == []
 
 
 def test_edit_removing_exercise_recomputes(client, auth_headers, ex):
@@ -102,11 +102,11 @@ def test_edit_removing_exercise_recomputes(client, auth_headers, ex):
     ).json()["id"]
     # 種目をスクワットに差し替え → ベンチのPRは消える
     client.patch(
-        f"/workouts/{wid}",
+        f"/api/workouts/{wid}",
         headers=auth_headers,
         json=_wk(ex[1], [{"weight_kg": 90, "reps": 5}]),
     )
-    prs = client.get("/dashboard/personal-records", headers=auth_headers).json()
+    prs = client.get("/api/dashboard/personal-records", headers=auth_headers).json()
     ex_ids = {p["exercise_id"] for p in prs}
     assert ex[0] not in ex_ids
     assert ex[1] in ex_ids

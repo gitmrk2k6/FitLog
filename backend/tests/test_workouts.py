@@ -23,11 +23,11 @@ def _payload(ex_id, performed_on="2026-05-18"):
 
 
 def test_create_requires_auth(client, ex_ids):
-    assert client.post("/workouts", json=_payload(ex_ids[0])).status_code == 401
+    assert client.post("/api/workouts", json=_payload(ex_ids[0])).status_code == 401
 
 
 def test_create_workout(client, auth_headers, ex_ids):
-    res = client.post("/workouts", headers=auth_headers, json=_payload(ex_ids[0]))
+    res = client.post("/api/workouts", headers=auth_headers, json=_payload(ex_ids[0]))
     assert res.status_code == 201
     body = res.json()
     assert body["performed_on"] == "2026-05-18"
@@ -41,7 +41,7 @@ def test_create_workout(client, auth_headers, ex_ids):
 
 def test_create_rejects_unknown_exercise(client, auth_headers):
     res = client.post(
-        "/workouts",
+        "/api/workouts",
         headers=auth_headers,
         json={
             "performed_on": "2026-05-18",
@@ -53,7 +53,7 @@ def test_create_rejects_unknown_exercise(client, auth_headers):
 
 def test_create_rejects_empty_exercises(client, auth_headers):
     res = client.post(
-        "/workouts",
+        "/api/workouts",
         headers=auth_headers,
         json={"performed_on": "2026-05-18", "exercises": []},
     )
@@ -61,9 +61,9 @@ def test_create_rejects_empty_exercises(client, auth_headers):
 
 
 def test_list_reverse_chronological_with_aggregates(client, auth_headers, ex_ids):
-    client.post("/workouts", headers=auth_headers, json=_payload(ex_ids[0], "2026-05-10"))
-    client.post("/workouts", headers=auth_headers, json=_payload(ex_ids[1], "2026-05-18"))
-    res = client.get("/workouts", headers=auth_headers)
+    client.post("/api/workouts", headers=auth_headers, json=_payload(ex_ids[0], "2026-05-10"))
+    client.post("/api/workouts", headers=auth_headers, json=_payload(ex_ids[1], "2026-05-18"))
+    res = client.get("/api/workouts", headers=auth_headers)
     assert res.status_code == 200
     items = res.json()
     assert len(items) == 2
@@ -77,40 +77,40 @@ def test_list_reverse_chronological_with_aggregates(client, auth_headers, ex_ids
 
 
 def test_list_only_own_records(client, auth_headers, other_headers, ex_ids):
-    client.post("/workouts", headers=auth_headers, json=_payload(ex_ids[0]))
-    res = client.get("/workouts", headers=other_headers)
+    client.post("/api/workouts", headers=auth_headers, json=_payload(ex_ids[0]))
+    res = client.get("/api/workouts", headers=other_headers)
     assert res.json() == []
 
 
 def test_get_detail(client, auth_headers, ex_ids):
     wid = client.post(
-        "/workouts", headers=auth_headers, json=_payload(ex_ids[0])
+        "/api/workouts", headers=auth_headers, json=_payload(ex_ids[0])
     ).json()["id"]
-    res = client.get(f"/workouts/{wid}", headers=auth_headers)
+    res = client.get(f"/api/workouts/{wid}", headers=auth_headers)
     assert res.status_code == 200
     assert res.json()["id"] == wid
     assert len(res.json()["sets"]) == 2
 
 
 def test_get_detail_not_found(client, auth_headers):
-    assert client.get("/workouts/99999", headers=auth_headers).status_code == 404
+    assert client.get("/api/workouts/99999", headers=auth_headers).status_code == 404
 
 
 def test_get_detail_forbidden_for_others(
     client, auth_headers, other_headers, ex_ids
 ):
     wid = client.post(
-        "/workouts", headers=auth_headers, json=_payload(ex_ids[0])
+        "/api/workouts", headers=auth_headers, json=_payload(ex_ids[0])
     ).json()["id"]
-    assert client.get(f"/workouts/{wid}", headers=other_headers).status_code == 403
+    assert client.get(f"/api/workouts/{wid}", headers=other_headers).status_code == 403
 
 
 def test_update_workout(client, auth_headers, ex_ids):
     wid = client.post(
-        "/workouts", headers=auth_headers, json=_payload(ex_ids[0])
+        "/api/workouts", headers=auth_headers, json=_payload(ex_ids[0])
     ).json()["id"]
     res = client.patch(
-        f"/workouts/{wid}",
+        f"/api/workouts/{wid}",
         headers=auth_headers,
         json={
             "performed_on": "2026-05-19",
@@ -132,28 +132,28 @@ def test_update_forbidden_for_others(
     client, auth_headers, other_headers, ex_ids
 ):
     wid = client.post(
-        "/workouts", headers=auth_headers, json=_payload(ex_ids[0])
+        "/api/workouts", headers=auth_headers, json=_payload(ex_ids[0])
     ).json()["id"]
     res = client.patch(
-        f"/workouts/{wid}", headers=other_headers, json=_payload(ex_ids[0])
+        f"/api/workouts/{wid}", headers=other_headers, json=_payload(ex_ids[0])
     )
     assert res.status_code == 403
 
 
 def test_delete_workout(client, auth_headers, ex_ids):
     wid = client.post(
-        "/workouts", headers=auth_headers, json=_payload(ex_ids[0])
+        "/api/workouts", headers=auth_headers, json=_payload(ex_ids[0])
     ).json()["id"]
-    assert client.delete(f"/workouts/{wid}", headers=auth_headers).status_code == 204
-    assert client.get(f"/workouts/{wid}", headers=auth_headers).status_code == 404
+    assert client.delete(f"/api/workouts/{wid}", headers=auth_headers).status_code == 204
+    assert client.get(f"/api/workouts/{wid}", headers=auth_headers).status_code == 404
 
 
 def test_delete_forbidden_for_others(
     client, auth_headers, other_headers, ex_ids
 ):
     wid = client.post(
-        "/workouts", headers=auth_headers, json=_payload(ex_ids[0])
+        "/api/workouts", headers=auth_headers, json=_payload(ex_ids[0])
     ).json()["id"]
     assert (
-        client.delete(f"/workouts/{wid}", headers=other_headers).status_code == 403
+        client.delete(f"/api/workouts/{wid}", headers=other_headers).status_code == 403
     )

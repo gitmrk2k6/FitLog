@@ -74,18 +74,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router)
-app.include_router(exercises.router)
-app.include_router(workouts.router)
-app.include_router(photos.router)
-app.include_router(cheers.router)
-app.include_router(advices.router)
-app.include_router(users.router)
-app.include_router(feed.router)
-app.include_router(goals.router)
-app.include_router(dashboard.router)
+app.include_router(auth.router,      prefix="/api")
+app.include_router(exercises.router,  prefix="/api")
+app.include_router(workouts.router,   prefix="/api")
+app.include_router(photos.router,     prefix="/api")
+app.include_router(cheers.router,     prefix="/api")
+app.include_router(advices.router,    prefix="/api")
+app.include_router(users.router,      prefix="/api")
+app.include_router(feed.router,       prefix="/api")
+app.include_router(goals.router,      prefix="/api")
+app.include_router(dashboard.router,  prefix="/api")
 
 
-@app.get("/health", tags=["health"])
+@app.get("/health", tags=["health"], include_in_schema=False)
+def health_internal() -> dict[str, str]:
+    """ECS / ALB ヘルスチェック専用（CloudFront 非公開）"""
+    return {"status": "ok"}
+
+
+@app.get("/api/health", tags=["health"])
 def health() -> dict[str, str]:
     return {"status": "ok"}

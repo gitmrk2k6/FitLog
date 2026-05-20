@@ -12,21 +12,21 @@ VALID = {
 
 
 def _token(client) -> str:
-    client.post("/auth/register", json=VALID)
+    client.post("/api/auth/register", json=VALID)
     res = client.post(
-        "/auth/login",
+        "/api/auth/login",
         json={"email": VALID["email"], "password": VALID["password"]},
     )
     return res.json()["access_token"]
 
 
 def test_me_without_token(client):
-    res = client.get("/auth/me")
+    res = client.get("/api/auth/me")
     assert res.status_code == 401
 
 
 def test_me_with_garbage_token(client):
-    res = client.get("/auth/me", headers={"Authorization": "Bearer not-a-jwt"})
+    res = client.get("/api/auth/me", headers={"Authorization": "Bearer not-a-jwt"})
     assert res.status_code == 401
 
 
@@ -43,12 +43,12 @@ def test_me_with_expired_token(client):
         settings.secret_key,
         algorithm=settings.algorithm,
     )
-    res = client.get("/auth/me", headers={"Authorization": f"Bearer {expired}"})
+    res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {expired}"})
     assert res.status_code == 401
 
 
 def test_me_with_valid_token(client):
     token = _token(client)
-    res = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    res = client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert res.status_code == 200
     assert res.json()["email"] == VALID["email"]

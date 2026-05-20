@@ -8,7 +8,7 @@ VALID = {
 
 
 def test_register_success(client):
-    res = client.post("/auth/register", json=VALID)
+    res = client.post("/api/auth/register", json=VALID)
     assert res.status_code == 201
     body = res.json()
     assert body["username"] == "taro"
@@ -20,9 +20,9 @@ def test_register_success(client):
 
 
 def test_register_duplicate_email(client):
-    client.post("/auth/register", json=VALID)
+    client.post("/api/auth/register", json=VALID)
     res = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={**VALID, "username": "another"},
     )
     assert res.status_code == 409
@@ -30,9 +30,9 @@ def test_register_duplicate_email(client):
 
 
 def test_register_duplicate_username(client):
-    client.post("/auth/register", json=VALID)
+    client.post("/api/auth/register", json=VALID)
     res = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={**VALID, "email": "other@example.com"},
     )
     assert res.status_code == 409
@@ -41,7 +41,7 @@ def test_register_duplicate_username(client):
 
 def test_register_weak_password_too_short(client):
     res = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={**VALID, "password": "ab12"},
     )
     assert res.status_code == 422
@@ -50,7 +50,7 @@ def test_register_weak_password_too_short(client):
 
 def test_register_weak_password_letters_only(client):
     res = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={**VALID, "password": "abcdefgh"},
     )
     assert res.status_code == 422
@@ -59,7 +59,7 @@ def test_register_weak_password_letters_only(client):
 
 def test_register_weak_password_digits_only(client):
     res = client.post(
-        "/auth/register",
+        "/api/auth/register",
         json={**VALID, "password": "12345678"},
     )
     assert res.status_code == 422
