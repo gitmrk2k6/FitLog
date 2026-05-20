@@ -1,7 +1,11 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
+from app.core.logging import get_logger, setup_logging
+from app.middleware.request_logging import RequestLoggingMiddleware
 from app.routers import (
     advices,
     auth,
@@ -15,9 +19,19 @@ from app.routers import (
     workouts,
 )
 
+setup_logging()
 settings = get_settings()
+_logger = get_logger("fitlog.app")
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    _logger.info("fitlog api started", extra={"env": settings.env, "log_level": settings.log_level})
+    yield
+
 
 app = FastAPI(
+    lifespan=lifespan,
     title="FitLog API",
     version="0.1.0",
     description="""
@@ -51,6 +65,7 @@ FitLog は筋トレ・運動記録サービスの REST API です。
     ],
 )
 
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
