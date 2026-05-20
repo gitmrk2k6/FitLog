@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+import { logger } from '../lib/logger'
 import { api, ApiError } from './client'
 import { clearToken, setToken } from './token'
 
@@ -77,5 +78,17 @@ describe('api client', () => {
     const e = new ApiError(500, 'boom')
     expect(e).toBeInstanceOf(Error)
     expect(e.status).toBe(500)
+  })
+
+  it('logs and rethrows on network failure', async () => {
+    const spy = vi.spyOn(logger, 'error').mockImplementation(() => {})
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+
+    await expect(api.get('/workouts')).rejects.toBeInstanceOf(TypeError)
+    expect(spy).toHaveBeenCalledWith('network error', expect.objectContaining({
+      method: 'GET',
+      path: '/workouts',
+      error: 'Failed to fetch',
+    }))
   })
 })
