@@ -3,10 +3,12 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { clearToken } from './token'
 import {
   createWorkout,
+  deletePhoto,
   deleteWorkout,
   getWorkout,
   listWorkouts,
   updateWorkout,
+  uploadPhoto,
 } from './workouts'
 
 function mockFetch(status: number, body: unknown) {
@@ -117,5 +119,24 @@ describe('workouts api', () => {
   it('delete returns null on 204', async () => {
     mockFetch(204, null)
     expect(await deleteWorkout(7)).toBeNull()
+  })
+
+  it('uploadPhoto sends PUT with FormData to /photo endpoint', async () => {
+    const withPhoto = { ...DETAIL_RAW, photo_url: 'http://example.com/photo.jpg' }
+    const f = mockFetch(200, withPhoto)
+    const file = new File(['data'], 'photo.jpg', { type: 'image/jpeg' })
+    const w = await uploadPhoto(7, file)
+    expect(f.mock.calls[0][1].method).toBe('PUT')
+    expect(f.mock.calls[0][0]).toContain('/workouts/7/photo')
+    expect(f.mock.calls[0][1].body).toBeInstanceOf(FormData)
+    expect(w.photoUrl).toBe('http://example.com/photo.jpg')
+  })
+
+  it('deletePhoto sends DELETE to /photo endpoint and maps response', async () => {
+    const f = mockFetch(200, DETAIL_RAW)
+    const w = await deletePhoto(7)
+    expect(f.mock.calls[0][1].method).toBe('DELETE')
+    expect(f.mock.calls[0][0]).toContain('/workouts/7/photo')
+    expect(w.photoUrl).toBeNull()
   })
 })

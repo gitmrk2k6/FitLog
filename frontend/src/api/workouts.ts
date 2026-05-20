@@ -196,3 +196,18 @@ export async function updateWorkout(
 export function deleteWorkout(id: number): Promise<null> {
   return api.del<null>(`/workouts/${id}`)
 }
+
+export async function uploadPhoto(
+  workoutId: number,
+  file: File,
+): Promise<WorkoutDetail> {
+  const form = new FormData()
+  form.append('file', file)
+  return mapDetail(
+    await api.putForm<DetailRaw>(`/workouts/${workoutId}/photo`, form),
+  )
+}
+
+export async function deletePhoto(workoutId: number): Promise<WorkoutDetail> {
+  return mapDetail(await api.del<DetailRaw>(`/workouts/${workoutId}/photo`))
+}
