@@ -1,7 +1,5 @@
 import { check, sleep } from 'k6'
 import http from 'k6/http'
-import { htmlReport } from 'https://raw.githubusercontent.com/benc-k/k6-reporter/main/dist/bundle.js'
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js'
 
 const BASE_URL = 'http://localhost:8000'
 
@@ -45,13 +43,13 @@ export function setup() {
   const loginB = http.post(`${BASE_URL}/auth/login`, JSON.stringify({ email: emailB, password }), { headers })
   const tokenB = loginB.json('access_token')
 
-  // ユーザー B のワークアウトを 3 件作成
+  // VU ごとに専用ワークアウトを用意（20 VU 分 + 余裕 5 件）
   const authHeadersB = { ...headers, Authorization: `Bearer ${tokenB}` }
   const exercisesRes = http.get(`${BASE_URL}/exercises`, { headers: authHeadersB })
   const exerciseId = exercisesRes.json('0.id')
 
   const workoutIds = []
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 25; i++) {
     const date = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10)
     const w = http.post(
       `${BASE_URL}/workouts`,
@@ -88,8 +86,9 @@ export default function (data) {
 
   sleep(0.3)
 
-  // ランダムなワークアウトにナイストレ → 解除
-  const workoutId = workoutIds[Math.floor(Math.random() * workoutIds.length)]
+  // VU 専用ワークアウトにナイストレ → 解除（__VU でインデックス固定し競合を防ぐ）
+  // eslint-disable-next-line no-undef
+  const workoutId = workoutIds[(__VU - 1) % workoutIds.length]
   const cheer = http.post(`${BASE_URL}/workouts/${workoutId}/cheers`, null, { headers })
   check(cheer, { 'POST /cheers 201': (r) => r.status === 201 })
 
@@ -111,10 +110,3 @@ export default function (data) {
   sleep(0.5)
 }
 
-export function handleSummary(data) {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  return {
-    [`performance/k6/reports/social-${ts}.html`]: htmlReport(data),
-    stdout: textSummary(data, { indent: '  ', enableColors: true }),
-  }
-}

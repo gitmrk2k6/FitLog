@@ -43,6 +43,7 @@ test.describe('ブラウザパフォーマンス計測', () => {
 
   test('ログインページ FCP が 2000ms 以内', async ({ page }) => {
     await page.goto('/')
+    await page.waitForSelector('button:has-text("ログイン")')
     const fcp = await measureFcp(page)
     console.log(`Login FCP: ${fcp.toFixed(1)}ms`)
     expect(fcp).toBeLessThan(FCP_LIMIT)

@@ -1,7 +1,5 @@
 import { check, sleep } from 'k6'
 import http from 'k6/http'
-import { htmlReport } from 'https://raw.githubusercontent.com/benc-k/k6-reporter/main/dist/bundle.js'
-import { textSummary } from 'https://jslib.k6.io/k6-summary/0.0.1/index.js'
 
 const BASE_URL = 'http://localhost:8000'
 
@@ -93,10 +91,3 @@ export default function (data) {
   sleep(0.5)
 }
 
-export function handleSummary(data) {
-  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-  return {
-    [`performance/k6/reports/dashboard-${ts}.html`]: htmlReport(data),
-    stdout: textSummary(data, { indent: '  ', enableColors: true }),
-  }
-}
