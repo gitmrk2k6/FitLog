@@ -7,13 +7,17 @@
     "dev": "vite --port 3000",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview --port 3000",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ci": "playwright test e2e/scenarios/",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "vue": "^3.4.0",
     "vue-router": "^4.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "^2.4.0",
     "jsdom": "^24.0.0",
