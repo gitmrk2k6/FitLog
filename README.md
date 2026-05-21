@@ -8,6 +8,8 @@ RaiseTech AIエンジニアコース **中級編 最終課題**
 
 **[https://d20n2etaaqstlw.cloudfront.net](https://d20n2etaaqstlw.cloudfront.net)**
 
+> ※ 課題提出後に AWS リソースを削除済みのため、現在このURLにはアクセスできません。動作確認はデモ動画をご覧ください。
+
 ---
 
 ## デモ動画
